@@ -15,6 +15,7 @@
 mod diagnostic;
 mod markdown;
 mod model;
+mod settings;
 
 pub use diagnostic::{Diagnostic, DiagnosticCode, Severity, SourceRange};
 pub use markdown::{Analysis, ParseLimits, analyze_markdown};
@@ -22,3 +23,4 @@ pub use model::{
     Block, BlockNode, HeadingLevel, Inline, InlineNode, InvalidHeadingLevel, InvalidLinkTarget,
     LinkTarget, ListItem, ListKind, RenderDocument,
 };
+pub use settings::{InvalidPaperSize, PaperSize};

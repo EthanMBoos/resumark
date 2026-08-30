@@ -1,13 +1,18 @@
 # Bundled fonts
 
-The Stage 0 renderer embeds the Libertinus Serif family through the pinned
-`typst-assets` crate instead of copying the same binary files into this
-repository. The family is distributed under the SIL Open Font License 1.1.
+Resumark bundles only the four Libertinus Serif faces the trusted theme can
+request:
 
-The dependency also contains Typst's fallback font set, but the rendering
-adapter filters it out and exposes only Libertinus Serif to the in-memory Typst
-world. Before release, replace this note with the final font inventory and
-include every upstream license text beside the production assets.
+- Regular
+- Italic
+- Bold
+- Bold Italic
+
+The files under [`libertinus/`](libertinus/) came from the pinned
+`typst-assets` 0.15.1 distribution and are included directly so the future
+WebAssembly compiler does not carry Typst's unrelated fallback fonts. The
+family is distributed under the SIL Open Font License 1.1; its copyright
+notice and complete license are in [`libertinus/OFL.txt`](libertinus/OFL.txt).
 
 - Libertinus project: <https://github.com/alerque/libertinus>
 - Typst assets: <https://github.com/typst/typst-assets>

@@ -78,7 +78,7 @@ Do not create a general `common`, `utils`, `manager`, or `services` crate. Put a
 The first implementation should make this command work for one realistic fixture:
 
 ```text
-resume build fixtures/resume.md --output target/resume.pdf
+resume build fixtures/resume.md --paper letter --output-dir target/letter
 ```
 
 It should also write one SVG per page. At this stage:

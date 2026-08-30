@@ -8,10 +8,10 @@ license.workspace = true
 
 [dependencies]
 resumark-core = { path = "../resumark-core" }
+serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 typst.workspace = true
-typst-assets.workspace = true
 typst-layout.workspace = true
 typst-pdf.workspace = true
 typst-svg.workspace = true

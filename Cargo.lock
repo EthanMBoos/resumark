@@ -1790,10 +1790,10 @@ name = "resumark-render-typst"
 version = "0.1.0"
 dependencies = [
  "resumark-core",
+ "serde",
  "serde_json",
  "thiserror",
  "typst",
- "typst-assets",
  "typst-layout",
  "typst-pdf",
  "typst-svg",

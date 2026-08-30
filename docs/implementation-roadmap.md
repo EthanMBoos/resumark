@@ -113,6 +113,12 @@ The realistic fixture has a stable, human-reviewable typed representation; inval
 
 ## Stage 2: Finish the native rendering boundary
 
+**Status:** Implemented. The renderer accepts explicit Letter/A4 and page-limit
+options, returns non-fatal overflow diagnostics, and keeps PDF/SVG exports on
+one compiled document. The virtual world rejects unknown project and package
+files, while the trusted theme receives only document/settings JSON and four
+locally bundled Libertinus Serif faces.
+
 ### Visible outcome
 
 The native compiler supports the complete v1 settings and containment rules: Letter/A4, clear overflow feedback, matching preview/PDF output, and no access beyond bundled assets.

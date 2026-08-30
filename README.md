@@ -9,11 +9,14 @@ and exports PDF and per-page SVG from the same compiled document:
 ```sh
 cargo run --package resumark-cli -- \
   build fixtures/resume.md \
-  --output target/resume.pdf
+  --paper letter \
+  --output-dir target/letter
 ```
 
-The command writes `target/resume.pdf`, `target/resume-1.svg`, and subsequent
-numbered SVG pages beside the PDF.
+The command writes `target/letter/resume.pdf`, `target/letter/resume-1.svg`,
+and subsequent numbered SVG pages. Use `--paper a4` for A4 output and
+`--max-pages N` to change the default two-page warning threshold; exceeding the
+threshold reports a warning without discarding valid output.
 
 To inspect the source-aware document model without rendering it:
 

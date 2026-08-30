@@ -1,4 +1,6 @@
-#let resume = json("/resume.json")
+#let input = json("/resume.json")
+#let resume = input.at("document")
+#let settings = input.at("settings")
 
 // All visual tuning lives here. "Leading" controls spacing between wrapped
 // lines; "gap" values control spacing between distinct blocks.
@@ -36,7 +38,7 @@
 
 #set document(title: resume.metadata.title, author: resume.metadata.title)
 #set page(
-  paper: "us-letter",
+  paper: if settings.at("paper") == "a4" { "a4" } else { "us-letter" },
   margin: (x: theme.page-margin-x, y: theme.page-margin-y),
 )
 #set text(

@@ -36,6 +36,7 @@ pub enum DiagnosticCode {
     DocumentTooLarge,
     MissingTitle,
     NestingTooDeep,
+    PageLimitExceeded,
     UnexpectedMarkdownStructure,
     UnsafeLinkScheme,
     UnsupportedMarkdown,
@@ -49,6 +50,7 @@ impl fmt::Display for DiagnosticCode {
             Self::DocumentTooLarge => "document_too_large",
             Self::MissingTitle => "missing_title",
             Self::NestingTooDeep => "nesting_too_deep",
+            Self::PageLimitExceeded => "page_limit_exceeded",
             Self::UnexpectedMarkdownStructure => "unexpected_markdown_structure",
             Self::UnsafeLinkScheme => "unsafe_link_scheme",
             Self::UnsupportedMarkdown => "unsupported_markdown",
@@ -100,7 +102,22 @@ impl Diagnostic {
         }
     }
 
-    pub(crate) fn with_help(mut self, help: impl Into<String>) -> Self {
+    /// Creates a non-fatal diagnostic that may accompany valid output.
+    pub fn warning(
+        code: DiagnosticCode,
+        message: impl Into<String>,
+        range: Option<SourceRange>,
+    ) -> Self {
+        Self {
+            code,
+            severity: Severity::Warning,
+            message: message.into(),
+            range,
+            help: None,
+        }
+    }
+
+    pub fn with_help(mut self, help: impl Into<String>) -> Self {
         self.help = Some(help.into());
         self
     }

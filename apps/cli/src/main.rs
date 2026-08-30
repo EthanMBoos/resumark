@@ -8,9 +8,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use resumark_core::{
-    Diagnostic, ParseLimits, RenderDocument, Severity, SourceRange, analyze_markdown,
+    Diagnostic, PaperSize, ParseLimits, RenderDocument, Severity, SourceRange, analyze_markdown,
 };
-use resumark_render_typst::Renderer;
+use resumark_render_typst::{RenderOptions, Renderer};
 
 #[derive(Debug, Parser)]
 #[command(name = "resume", about = "Compile a Markdown resume with Resumark")]
@@ -26,9 +26,17 @@ enum Command {
         /// Markdown resume to compile.
         input: PathBuf,
 
-        /// PDF path. Page SVGs are written beside it.
-        #[arg(short, long, default_value = "target/resume.pdf")]
-        output: PathBuf,
+        /// Directory for the PDF and numbered SVG pages.
+        #[arg(long, default_value = "target/rendered")]
+        output_dir: PathBuf,
+
+        /// Physical page size: letter or a4.
+        #[arg(long, default_value_t)]
+        paper: PaperSize,
+
+        /// Warn when the rendered document exceeds this many pages.
+        #[arg(long, default_value_t = 2, value_parser = parse_page_limit)]
+        max_pages: usize,
     },
 
     /// Print the analyzed, renderer-independent document as formatted JSON.
@@ -42,35 +50,51 @@ fn main() -> Result<()> {
     let arguments = Arguments::parse();
 
     match arguments.command {
-        Command::Build { input, output } => build(&input, &output),
+        Command::Build {
+            input,
+            output_dir,
+            paper,
+            max_pages,
+        } => build(&input, &output_dir, paper, max_pages),
         Command::Inspect { input } => inspect(&input),
     }
 }
 
-fn build(input: &Path, output: &Path) -> Result<()> {
+fn build(input: &Path, output_dir: &Path, paper: PaperSize, max_pages: usize) -> Result<()> {
     let markdown = read_markdown(input)?;
     let document = valid_document(input, &markdown)?;
 
     let renderer = Renderer::new().context("could not initialize the Typst renderer")?;
+    let options = RenderOptions {
+        paper,
+        max_pages: Some(max_pages),
+    };
     let compiled = renderer
-        .compile(&document)
+        .compile(&document, &options)
         .context("could not compile the resume")?;
+    print_diagnostics(input, &markdown, compiled.diagnostics());
 
-    create_parent_directory(output)?;
+    create_output_directory(output_dir)?;
+    let output_name = input
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("resume");
+    let pdf_path = output_dir.join(format!("{output_name}.pdf"));
     let pdf = compiled.pdf().context("could not export the resume PDF")?;
-    fs::write(output, pdf).with_context(|| format!("could not write {}", output.display()))?;
+    fs::write(&pdf_path, pdf).with_context(|| format!("could not write {}", pdf_path.display()))?;
 
     let svg_pages = compiled.svg_pages();
     for (index, svg) in svg_pages.iter().enumerate() {
-        let path = svg_path(output, index + 1);
+        let path = svg_path(output_dir, output_name, index + 1);
         fs::write(&path, svg).with_context(|| format!("could not write {}", path.display()))?;
     }
 
     println!(
-        "Built {} and {} SVG page(s) from {}",
-        output.display(),
-        svg_pages.len(),
-        input.display()
+        "Built {} and {} SVG page(s) for {} paper from {}",
+        pdf_path.display(),
+        compiled.page_count(),
+        paper,
+        input.display(),
     );
     Ok(())
 }
@@ -162,21 +186,20 @@ fn source_location(source: &str, range: SourceRange) -> SourceLocation<'_> {
     }
 }
 
-fn create_parent_directory(path: &Path) -> Result<()> {
-    if let Some(parent) = path
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-    {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("could not create {}", parent.display()))?;
-    }
-    Ok(())
+fn create_output_directory(path: &Path) -> Result<()> {
+    fs::create_dir_all(path).with_context(|| format!("could not create {}", path.display()))
 }
 
-fn svg_path(pdf_path: &Path, page_number: usize) -> PathBuf {
-    let stem = pdf_path
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .unwrap_or("resume");
-    pdf_path.with_file_name(format!("{stem}-{page_number}.svg"))
+fn svg_path(output_dir: &Path, output_name: &str, page_number: usize) -> PathBuf {
+    output_dir.join(format!("{output_name}-{page_number}.svg"))
+}
+
+fn parse_page_limit(value: &str) -> Result<usize, String> {
+    let limit = value
+        .parse::<usize>()
+        .map_err(|_| "the maximum page count must be a positive integer".to_owned())?;
+    if limit == 0 {
+        return Err("the maximum page count must be at least one".to_owned());
+    }
+    Ok(limit)
 }

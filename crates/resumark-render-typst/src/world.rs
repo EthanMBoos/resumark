@@ -90,3 +90,44 @@ fn file_id(path: &str) -> Option<FileId> {
 fn not_found(id: FileId) -> FileError {
     FileError::NotFound(PathBuf::from(id.vpath().get_with_slash()))
 }
+
+#[cfg(test)]
+mod tests {
+    use typst::syntax::package::PackageSpec;
+
+    use super::*;
+
+    #[test]
+    fn world_exposes_only_the_trusted_theme_and_document_data() {
+        let world = ResumarkWorld::new(b"{}".to_vec(), Vec::new())
+            .expect("the bundled virtual paths are valid");
+
+        assert!(world.source(world.main.id()).is_ok());
+        assert!(world.file(world.main.id()).is_ok());
+        assert!(world.file(world.document_id).is_ok());
+
+        let unknown = file_id("/private.txt").expect("the test path is valid");
+        assert!(matches!(world.source(unknown), Err(FileError::NotFound(_))));
+        assert!(matches!(world.file(unknown), Err(FileError::NotFound(_))));
+    }
+
+    #[test]
+    fn world_rejects_package_files() {
+        let world = ResumarkWorld::new(b"{}".to_vec(), Vec::new())
+            .expect("the bundled virtual paths are valid");
+        let package = "@preview/example:1.0.0"
+            .parse::<PackageSpec>()
+            .expect("the test package spec is valid");
+        let path = VirtualPath::new("/main.typ").expect("the test package path is valid");
+        let package_id = FileId::new(RootedPath::new(VirtualRoot::Package(package), path));
+
+        assert!(matches!(
+            world.source(package_id),
+            Err(FileError::NotFound(_))
+        ));
+        assert!(matches!(
+            world.file(package_id),
+            Err(FileError::NotFound(_))
+        ));
+    }
+}
