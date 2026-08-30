@@ -8,6 +8,29 @@ This document describes the product and its technical thesis. The executable bui
 
 The implementation plans deliberately build a working native compiler and test Typst in WebAssembly before investing in the full editor. Broad test, CI, and release scaffolding follows the usable product loop instead of preceding it.
 
+## Scope discipline
+
+This is a small side project aiming for a good-enough v1, not an attempt to
+design a general document platform. Code earns its place when it enables the
+next visible workflow, protects user work, or preserves a boundary that would
+be costly to retrofit. A hypothetical future feature is not enough.
+
+For v1:
+
+- Prefer one concrete implementation over a trait or configurable framework.
+- Keep code beside its only caller until a second real consumer needs a shared
+  boundary.
+- Add focused checks for security, data loss, and preview/export parity; defer
+  broad matrices and release scaffolding.
+- Measure suspected performance problems once, then optimize only the ones a
+  person can actually feel.
+- Stop at one resume, one theme, Letter/A4, local saving, Markdown portability,
+  preview, diagnostics, and PDF export.
+
+The intentionally durable pieces are the typed document model, safe Typst
+boundary, and shared compiled result for preview and PDF. Most other structure
+should remain easy to replace.
+
 ## Project thesis
 
 The interesting version of this project is not "rewrite a React resume builder in Rust."
@@ -115,7 +138,10 @@ Small enhancements can be implemented around it:
 - Source-offset diagnostics
 - Optional synchronized scrolling
 
-Do not build a syntax-highlighting editor in the first version. If that eventually becomes important, accepting CodeMirror as the project's one JavaScript dependency is probably better than maintaining an editor engine.
+These are post-v1 ideas, not an initial checklist. Do not build a
+syntax-highlighting editor in the first version. If that eventually becomes
+important, accepting CodeMirror as the project's one JavaScript dependency is
+probably better than maintaining an editor engine.
 
 ## Markdown pipeline
 
@@ -205,12 +231,13 @@ Display generated SVG through Blob URLs rather than injecting SVG strings direct
 
 Run Typst in a dedicated Web Worker:
 
-- Debounce edits by roughly 150–250 milliseconds.
-- Give every request a monotonically increasing revision number.
-- Discard results from stale revisions.
-- Terminate and recreate the worker after a pathological timeout.
 - Keep typesetting off the UI thread.
-- Reuse incremental compiler state when practical.
+- Start with one request and one response for the browser fixture.
+- Add debouncing and a small revision number only when live editing creates
+  overlapping work.
+- Add worker timeout/restart behavior only if a real hang is observed.
+- Add incremental compiler state only after measurements show it materially
+  improves editing.
 
 ## PDF quality and ATS claims
 
@@ -232,55 +259,34 @@ This is not enough to promise that every applicant tracking system will parse ev
 - A single-column theme has a predictable reading order.
 - The document passes the selected PDF standard checks.
 
-Automated tests should extract text from every generated fixture. PDF/UA builds can also be checked with [veraPDF](https://verapdf.org/), which Typst's accessibility documentation recommends.
+After the usable workflow exists, automated checks can extract text from
+generated fixtures. PDF/UA builds can also be checked with
+[veraPDF](https://verapdf.org/), which Typst's accessibility documentation
+recommends.
 
 ## Persistence
 
-Use IndexedDB rather than a collection of independent `localStorage` keys. Wrap it behind a project-owned storage trait so the rest of the application does not depend on browser-specific types.
+For one small resume, use one versioned JSON value in `localStorage` containing
+the Markdown and settings. Load it synchronously before installing autosave so
+sample content can never overwrite restored content.
 
-The application should move through an explicit hydration state:
+Keep this implementation in the web application. Do not add a storage trait,
+repository, database schema, migration framework, or IndexedDB dependency for
+v1. Save after a short idle delay, report storage failures honestly, and always
+offer Markdown download so the browser is not the only copy.
 
-```text
-LoadingDatabase → Ready(Document) → Saving → Ready
-                         └──────────→ SaveError
-```
-
-Never create a default document until the database has finished loading. This avoids the restoration race that can overwrite saved content in simpler implementations.
-
-Suggested stores:
-
-```text
-documents
-  id
-  name
-  markdown
-  settings
-  created_at
-  updated_at
-
-revisions
-  document_id
-  revision_id
-  markdown
-  settings
-  created_at
-```
-
-Persistence behavior:
-
-- Save after roughly 400 milliseconds of inactivity.
-- Create periodic recoverable revisions.
-- Snapshot before template replacement, imports, and resets.
-- Limit or compact old revisions.
-- Always support Markdown and project-file download.
-- Never trap the only copy of a resume in one browser profile.
+IndexedDB becomes worthwhile only if multiple documents, revision history,
+large assets, or observed storage limits make the single record inadequate.
 
 ## Workspace layout
 
-The layout below is the conceptual end state. To keep the early Rust code easier to navigate, the [implementation roadmap](implementation-roadmap.md) begins with model and Markdown modules together in `resumark-core`, then introduces new crate boundaries only when the browser worker or another real consumer requires them.
+Keep the v1 workspace close to the current layout. Add the browser application
+when the WASM spike begins, but do not split storage or worker protocol crates
+until duplicated code or independently built consumers make that separation
+clearly simpler.
 
 ```text
-rust-resume/
+resumark/
 ├── Cargo.toml
 ├── site/
 │   ├── index.html
@@ -289,94 +295,67 @@ rust-resume/
 │   ├── web/
 │   └── cli/
 ├── crates/
-│   ├── resume-model/
-│   ├── resume-markdown/
-│   ├── resume-render-typst/
-│   └── resume-storage/
+│   ├── resumark-core/
+│   └── resumark-render-typst/
 ├── themes/
-│   ├── minimal.typ
-│   ├── compact.typ
-│   └── modern.typ
+│   └── minimal.typ
 └── fonts/
 ```
 
 Responsibilities:
 
-- `resume-model`: Serializable document and settings types; validation rules
-- `resume-markdown`: Markdown parsing, source maps, safe URL validation
-- `resume-render-typst`: In-memory `World`, themes, SVG/PDF export
-- `resume-storage`: Storage trait and IndexedDB implementation
+- `resumark-core`: Serializable model, Markdown parsing, validation, and diagnostics
+- `resumark-render-typst`: In-memory `World`, trusted theme, SVG/PDF export
 - `web`: Leptos UI and worker coordination
 - `cli`: Native compilation, validation, and inspection commands
 
 ## Native CLI
 
-The shared core makes a CLI a natural part of the project rather than a separate implementation:
+The native CLI is a development harness for the shared compiler during v1:
 
 ```bash
 resume build resume.md
-resume build resume.md --theme compact --paper a4
-resume preview resume.md
-resume check resume.md
-resume export resume.md --format json
+resume build resume.md --paper a4
+resume inspect resume.md
 ```
 
-Later, a master career document could generate job-specific profiles:
-
-```bash
-resume build career.md --profile platform-engineer
-resume build career.md --profile frontend-startup
-```
-
-The CLI is a meaningful differentiator. It makes the project Git-friendly and useful in CI, while exercising the same parser, model, validation, themes, and renderer as the web application.
+A polished command surface, preview launcher, profile generation, packaging, and
+CI use can wait until the browser product is useful. The harness still earns
+its place by exercising the same parser, model, theme, and renderer.
 
 ## Performance plan
 
 Rust/WASM does not guarantee a smaller or faster application. WASM binaries are often larger than equivalent JavaScript bundles, and the Typst compiler plus fonts will dominate the download.
 
-Design around that explicitly:
+For the browser spike, measure enough to catch a clearly impractical result:
 
 - Keep the public page independent from the application bundle.
-- Split the editor shell and Typst compiler into separate WASM modules.
-- Load the editor immediately and the compiler in a worker.
-- Cache versioned WASM and font assets indefinitely.
-- Start with two or three carefully chosen fonts.
-- Avoid bundling large international font families by default.
-- Use a size-optimized WASM release profile.
-- Enable LTO, one codegen unit, stripping, and `panic = "abort"`.
-- Run `wasm-opt` on release artifacts.
-- Serve Brotli-compressed WASM when the host supports it.
-- Avoid WASM threads initially; one worker is sufficient.
+- Compile Typst in one worker with the existing four font faces.
+- Record production artifact size and rough cold render time on the development
+  machine.
+- Open the spike in one current desktop browser and confirm it remains usable.
 
-The Markdown parser is not the likely bottleneck. Measure:
-
-- Compressed asset size
-- Cold WASM initialization time
-- First preview latency
-- Incremental preview latency
-- PDF export latency
-- Peak memory
-- Mobile Safari behavior
-
-Suggested decision gate:
-
-- If the compiler and fonts exceed roughly 8–10 MB compressed, reconsider the default font set and module boundary.
-- If cold preview consistently exceeds three seconds on a midrange phone, consider a small native server fallback.
-- If incremental compilation cannot stay comfortably below the debounce window, retain the last preview and make compilation explicitly asynchronous.
+If the result is obviously too large, slow, or incompatible, investigate before
+building the editor. Brotli budgets, mobile benchmarks, peak-memory work,
+incremental timing, caching policy, and `wasm-opt` tuning belong after a usable
+editing loop makes them relevant.
 
 ## Fallback architecture
 
 Client-side Typst is the biggest uncertainty. Community browser wrappers exist, but they are comparatively young. The project should prove the official Rust crates under `wasm32-unknown-unknown` before committing to a particular wrapper.
 
-If browser compilation is too large or unreliable, preserve the same shared crates and add a small Axum service:
+If browser compilation proves too large or unreliable, preserve the shared
+model and renderer while deciding on a fallback. A small native service is one
+possible shape:
 
 ```text
 Leptos app → typed document JSON → Axum → native Typst → PDF/SVG
 ```
 
-That would still be dramatically simpler and safer than Puppeteer. The service must accept a typed document rather than raw HTML, use the restricted in-memory Typst world, enforce body and time limits, and rate-limit public compilation.
-
-The fallback sacrifices some privacy and offline use, but it does not invalidate the core architecture.
+Do not design or scaffold this service during the browser spike. If it becomes
+necessary, retain the typed-document and restricted-renderer boundaries and
+scope the service from the observed failure. A server fallback would sacrifice
+some privacy and offline use, but it would not invalidate the core compiler.
 
 ## Security and privacy
 
@@ -388,9 +367,7 @@ For the fully local build:
 - Reject raw HTML and dangerous URL schemes.
 - Keep templates trusted and bundled.
 - Restrict document, nesting, and asset sizes.
-- Terminate compilation workers that exceed a time budget.
 - Do not support arbitrary user Typst code initially.
-- Prefer raster image uploads initially; reject SVG uploads unless sanitized.
 
 The product should be able to say, truthfully:
 
@@ -398,7 +375,11 @@ The product should be able to say, truthfully:
 
 That is a real differentiator for a document containing addresses, phone numbers, employment history, and other personal information.
 
-## Testing strategy
+## Post-v1 testing ideas
+
+The lists below are a backlog, not requirements for the first usable version.
+Before v1, verification should stay proportional to each slice: manually use
+the visible workflow and automate only dangerous boundaries or regressions.
 
 ### Rust core
 
@@ -422,7 +403,7 @@ That is a real differentiator for a document containing addresses, phone numbers
 
 ### Browser
 
-- IndexedDB hydration and migration tests
+- `localStorage` load/save recovery tests
 - Save/reload recovery tests
 - Worker cancellation and stale-result tests
 - Keyboard and mobile interaction tests
@@ -446,29 +427,36 @@ Before building the UI:
 
 This validates the central architecture using normal native Rust, without WebAssembly friction.
 
-### Milestone 2: browser shell
+### Milestone 2: browser compiler spike
 
-- Leptos CSR application
-- Native textarea
-- Responsive edit/preview layout
-- Theme and paper controls
-- IndexedDB documents
-- Autosave status
-- Source import/export
-- A temporary lightweight preview if Typst/WASM is not connected yet
-
-### Milestone 3: Typst worker
-
+- Minimal browser page
 - Compile the rendering crate for `wasm32-unknown-unknown`
-- Load fonts and themes from local assets
-- Export SVG pages in a worker
-- Add revision cancellation and timeouts
-- Export PDF locally
-- Measure cold and warm performance on desktop and mobile
+- Load the trusted theme and four font faces in a worker
+- Display fixture SVG pages and download its PDF
+- Record approximate artifact size and first-render time on the development machine
 
 This is the project's go/no-go point for a completely static architecture.
 
-### Milestone 4: useful product
+### Milestone 3: editing loop
+
+- Native Markdown textarea
+- Responsive edit/preview layout
+- Live worker rendering with simple stale-response protection if needed
+- Source diagnostics
+- Letter/A4 control
+- PDF download from the same compile as the visible preview
+
+### Milestone 4: good-enough local v1
+
+- One resume saved as one versioned `localStorage` record
+- Honest autosave status and recovery after reload
+- Markdown import and export
+- One bundled theme
+- Manual desktop and narrow-layout check
+
+Stop here and use the application before expanding its scope.
+
+### Later product depth, only if use justifies it
 
 - Multiple named resumes
 - Version history and restore
@@ -479,7 +467,7 @@ This is the project's go/no-go point for a completely static architecture.
 - CLI release
 - Static hosting and offline caching
 
-### Milestone 5: differentiating features
+### Possible differentiating features
 
 - A master career inventory
 - Tagged content blocks
@@ -531,7 +519,7 @@ Possible narrative structure:
 6. Move it into WebAssembly and confront the cold-start and bundle-size cost.
 7. End with measured tradeoffs rather than a language victory lap.
 
-Useful measurements to collect during the build:
+Useful measurements to collect opportunistically after the workflow exists:
 
 - Static landing-page transfer size and render time
 - Leptos editor WASM size
@@ -564,7 +552,6 @@ The likely closing idea:
 - [Typst compiler architecture](https://github.com/typst/typst/blob/main/docs/dev/architecture.md)
 - [`typst-pdf`](https://docs.rs/typst-pdf/latest/typst_pdf/)
 - [`typst-svg`](https://docs.rs/typst-svg/latest/typst_svg/)
-- [`indexed_db_futures`](https://docs.rs/indexed_db_futures/latest/indexed_db_futures/)
 - [JSON Resume schema](https://jsonresume.org/schema)
 
 ## First next step

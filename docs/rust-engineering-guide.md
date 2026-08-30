@@ -9,6 +9,11 @@ This guide describes how Resumark should be structured and written as it grows. 
 
 This is a side project, not a framework. Add a crate, trait, generic abstraction, build tool, or test dependency only when the current stage needs it.
 
+“Might be useful later” is not a current need. Prefer a direct implementation
+that can be deleted or refactored easily. Durable structure is reserved for the
+few v1 invariants: trusted input, preview/PDF parity, local source portability,
+and not losing the last good work.
+
 ## Grow the workspace with the product
 
 Start the native slice with three packages:
@@ -35,37 +40,36 @@ cli -> resumark-render-typst -> resumark-core
 
 The renderer consumes a typed `RenderDocument`; it does not parse Markdown. The CLI coordinates parsing and rendering. This makes the intermediate model a real contract without splitting every module into its own crate.
 
-When browser compilation begins, add only the packages needed to keep the editor shell and compiler payload separate:
+When browser compilation begins, first try to add only one `apps/web` package.
+Keep worker messages in that application unless the build genuinely requires a
+separate worker package:
 
 ```text
 apps/
   web/                         Leptos CSR editor; no Typst dependency
-  render-worker/               Typst compiler Web Worker
-crates/
-  resumark-worker-protocol/    Serializable request and response enums
 ```
 
-The resulting dependency direction is:
+If a separately built worker becomes necessary, add it then:
 
 ```text
 cli -> resumark-core
 cli -> resumark-render-typst -> resumark-core
 web -> resumark-core
-web -> resumark-worker-protocol -> resumark-core
-render-worker -> resumark-worker-protocol
 render-worker -> resumark-render-typst -> resumark-core
 ```
 
-`resumark-worker-protocol` is justified because two independently built WASM modules must agree on messages without making the worker depend on Leptos. It may depend on public model, settings, and diagnostic types from `resumark-core`; it must not contain rendering or UI behavior.
-
-Keep IndexedDB code under `apps/web/src/storage/` initially. A separate storage crate or repository trait is useful only after a second implementation has a real consumer. Until then, a concrete `IndexedDbDocumentStore` is easier to follow than an async trait, boxed futures, or generic dependency injection.
+Share a worker-protocol module or crate only if two build targets must compile
+the same types. Keep v1 `localStorage` code under `apps/web/src/storage.rs` as
+plain functions or a small concrete type. IndexedDB, a repository trait, and a
+storage crate require a demonstrated need such as multiple documents, history,
+or large assets.
 
 ### Boundary rules
 
 - `resumark-core` contains no Typst, Leptos, browser, filesystem, or CLI types.
 - `resumark-render-typst` contains every direct import from the `typst`, `typst-pdf`, and `typst-svg` crates.
 - `render-worker` owns the current compiled Typst document. The editor never receives or understands it.
-- `web` owns Leptos signals, browser events, Blob URLs, IndexedDB, and timers.
+- `web` owns Leptos signals, browser events, object URLs, `localStorage`, and timers.
 - `cli` and `web` convert library errors into user-facing output. Libraries do not print, log, or exit.
 - Modules and fields are private by default. Use `pub(crate)` for collaboration inside a crate and `pub` only for the small cross-crate contract.
 
@@ -99,10 +103,13 @@ Compile the same renderer to `wasm32-unknown-unknown` and run it in a minimal de
 
 - Can the pinned Typst crates build without replacing the shared renderer?
 - Can the worker load only the bundled theme, font, and document JSON?
-- What are the compressed payload, cold initialization, first compile, warm compile, PDF export, and peak-memory costs?
-- Does it work in current Chrome, Firefox, Safari, and at least one midrange phone?
+- Can one current desktop browser display SVG pages and download the PDF without
+  an obviously unacceptable load or render delay?
 
-Use the decision thresholds in the implementation roadmap. Treat changing to the Axum fallback as a product decision, not as a renderer rewrite.
+Record approximate production artifact size and first-render time. Do not build
+a benchmark harness, mobile matrix, timeout recovery system, or formal budget
+at this stage. Treat changing to a server fallback as a product decision only
+if the simple browser path actually fails.
 
 ### Editor and storage
 
@@ -210,7 +217,7 @@ pub struct Diagnostic {
 
 Examples include unsupported raw HTML, an unsafe link scheme, excessive nesting, missing required title information, or content overflow. Stable codes such as `unsafe_link_scheme` are more useful to the web UI and CLI than matching message strings.
 
-An error type represents an operation that failed: invalid bundled font data, a virtual-world file failure, Typst compilation failure, IndexedDB failure, worker transport failure, or filesystem I/O. Use `thiserror` for meaningful library error enums and preserve underlying sources. Use `anyhow` only in application entry points where the next action is to add context, display the chain, and exit or update UI state.
+An error type represents an operation that failed: invalid bundled font data, a virtual-world file failure, Typst compilation failure, browser storage failure, worker transport failure, or filesystem I/O. Use `thiserror` for meaningful library error enums and preserve underlying sources. Use `anyhow` only in application entry points where the next action is to add context, display the chain, and exit or update UI state.
 
 Rules for fallible code:
 
@@ -222,15 +229,16 @@ Rules for fallible code:
 - Keep user-facing prose out of low-level variants when the CLI and web UI need different presentation.
 - Do not use `String`, `JsValue`, `Box<dyn Error>`, or `()` as the public library error type.
 
-The WASM release profile may eventually use `panic = "abort"`. A panicking compile then kills the worker; it cannot be recovered with `catch_unwind`. The editor's timeout and worker-restart path is the operational safety net, while native regression tests prevent known panics.
+The WASM release profile may eventually use `panic = "abort"`. A panicking compile then kills the worker; it cannot be recovered with `catch_unwind`. Keep native regression coverage for known panics. Add worker restart behavior only if actual browser use demonstrates that recovery is needed.
 
 ## Async and worker behavior
 
 Parsing, validation, and Typst compilation stay synchronous. The browser worker is the concurrency boundary. This keeps `Future`, `Pin`, `Send`, and executor types out of the core APIs.
 
-Use `gloo-worker` initially for a typed worker bridge and its existing message codec. Keep the protocol independent of that library so the bridge can be replaced with thin `wasm-bindgen` and transferable buffers if measurement shows serialization copies matter.
+Use the simplest worker bridge that builds cleanly. `gloo-worker` is reasonable,
+but do not wrap it in a replaceable abstraction before a replacement is needed.
 
-A first protocol should be explicit:
+A live editor protocol can stay small:
 
 ```rust
 pub struct Revision(u32);
@@ -241,20 +249,14 @@ pub enum WorkerRequest {
         source: String,
         settings: RenderSettings,
     },
-    ExportPdf {
-        revision: Revision,
-    },
 }
 
 pub enum WorkerResponse {
     Compiled {
         revision: Revision,
         pages: Vec<String>,
+        pdf: Vec<u8>,
         diagnostics: Vec<Diagnostic>,
-    },
-    PdfReady {
-        revision: Revision,
-        bytes: Vec<u8>,
     },
     InvalidDocument {
         revision: Revision,
@@ -267,20 +269,21 @@ pub enum WorkerResponse {
 }
 ```
 
-Use a `u32` revision because it crosses JavaScript safely and cannot realistically wrap during one editor session. The worker retains the last valid `CompiledDocument` and its revision. `ExportPdf` succeeds only for that exact revision, so the downloaded PDF matches the visible preview.
-
-A synchronous Typst compile cannot process a cancellation message while it is running. Implement cancellation behavior in the editor-side controller:
+The fixed-fixture spike does not need revisions. Add a plain `u32` revision when
+live editing begins and only if overlapping work is possible. A minimal
+editor-side flow is:
 
 1. Debounce source edits.
-2. Send at most one compile while the worker is busy.
-3. Replace the single pending request with the newest edit rather than queueing every revision.
-4. Ignore a response that is older than the newest requested revision.
-5. After a response, immediately send the one pending request, if present.
-6. If the compile exceeds its time budget, terminate the worker, create a new one, and resend only the newest request.
+2. Send the newest source with its revision.
+3. Ignore any response older than the newest requested revision.
 
-Keep the last valid preview visible during compilation and document errors. Revoke superseded SVG Blob URLs only after the replacement preview is installed, and revoke all remaining URLs when the preview is destroyed.
+Keep the last valid preview visible during compilation and document errors.
+Generate the PDF from the same compilation as those SVG pages. Add busy-worker
+queues, cancellation, timeout/restart behavior, or elaborate Blob URL lifecycle
+management only after the straightforward implementation reveals a real
+problem.
 
-Use `spawn_local` only at browser edges such as worker setup, IndexedDB calls, and downloads. Do not add Tokio to the web or core crates.
+Use `spawn_local` only at browser edges that are actually asynchronous, such as worker setup and downloads. Do not add Tokio to the web or core crates.
 
 ## UI and persistence state
 
@@ -294,22 +297,23 @@ enum CompileState { Starting, Compiling(Revision), Ready, Failed }
 
 Leptos signals and effects belong in `apps/web`. Pass plain owned values to storage and worker controllers. Avoid wrappers that make an ordinary signal update require understanding a project-specific reactive framework.
 
-Use `indexed_db_futures` for the first persistence implementation because its future- and Serde-based API is a reasonable fit for a single-threaded browser application. Contain its transaction and JavaScript types inside `IndexedDbDocumentStore`; UI components should see project-owned records and `StorageError`.
-
-Prefer concrete inherent async methods such as `open`, `load_active_document`, `save_document`, and `append_revision`. Do not add a `DocumentRepository` async trait until another implementation is actually used.
+Use one versioned, serialized `localStorage` record for v1. Keep storage access
+synchronous and concrete. Load before installing the save effect, debounce
+writes, and surface quota or browser-policy failures without discarding the
+in-memory source.
 
 Persistence rules:
 
-- Finish database hydration before constructing or saving a default document.
-- Perform each logically atomic change in one read-write transaction.
-- Do not await unrelated work while an IndexedDB transaction is open; transaction lifetime is tied to the browser event loop.
-- Handle blocked upgrades and `versionchange` by closing the old connection and showing a reload message.
+- Load the saved record before constructing or saving a default document.
+- Serialize Markdown and settings together so a save cannot mix revisions.
 - Autosave after the configured idle period; do not rely on asynchronous work from an unload handler.
 - Report save failure without discarding the in-memory source.
-- Keep Markdown and versioned project-file export available because browser persistence is not the only copy a user should trust.
-- Add schema migrations when the second schema exists, not before. Test each migration from a real prior fixture.
+- Keep Markdown export available because browser persistence is not the only copy a user should trust.
+- Add IndexedDB, project-file migrations, revisions, and multiple-document
+  records only when those features are implemented.
 
-Start with a fixed single-document record if that keeps the first persistence slice smaller. Introduce document identifiers, indexes, revision compaction, and multi-document queries together when multiple documents are built.
+One document is the v1 product. Do not include identifiers, indexes, revision
+compaction, or multi-document queries in its storage shape.
 
 ## Naming and code shape
 
@@ -360,9 +364,9 @@ Initial dependency choices:
 | Document compilation | matching `typst`, `typst-pdf`, and `typst-svg` versions | Pin exact versions because the Rust API is pre-1.0. |
 | Web UI | Leptos 0.8 CSR with Trunk | Prefer the current stable line over the 0.9 beta; keep the framework-specific layer thin. |
 | Worker bridge | `gloo-worker` 0.6 line | Start readable; replace the bridge only if measured copying/build friction justifies it. |
-| Browser persistence | `indexed_db_futures` 0.6 line | Keep its non-obvious transaction behavior behind one concrete type. |
+| Browser persistence | browser `localStorage` | One versioned record is enough for the v1 document. |
 
-As of 2026-08-30, stable Leptos is 0.8.20, the current Typst Rust documentation is 0.15.1, `pulldown-cmark` is 0.13.4, `gloo-worker` is 0.6.0, and `indexed_db_futures` is 0.6.4. Recheck current releases and WASM compatibility when the workspace is created. Pin all three Typst crates to the same exact version.
+As of 2026-08-30, stable Leptos is 0.8.20, the current Typst Rust documentation is 0.15.1, `pulldown-cmark` is 0.13.4, and `gloo-worker` is 0.6.0. Recheck current releases and WASM compatibility when each dependency is added. Pin all three Typst crates to the same exact version.
 
 Do not add `async-trait`, Tokio, an ORM-like storage layer, a dependency-injection framework, a logging facade, a snapshot framework, property testing, or fuzz infrastructure until implemented behavior demonstrates the need.
 
@@ -384,6 +388,9 @@ Before considering a chunk complete, ask:
 - [ ] Does the main function or component still fit on one screen and read from high-level step to high-level step?
 - [ ] Does each comment explain why a surprising choice exists?
 - [ ] Is the smoke check proportional to the risky boundary introduced in this chunk?
+- [ ] Does every new layer or dependency enable behavior used in this chunk?
+- [ ] Could deleting an abstraction make the code easier to follow without
+      weakening a v1 invariant?
 
 ## Primary references
 
@@ -400,6 +407,4 @@ Checked on 2026-08-30:
 - [Typst PDF reference](https://typst.app/docs/reference/pdf/) and [accessibility guide](https://typst.app/docs/guides/accessibility/) — tagged-PDF defaults, PDF/UA-1 checks, and the limits of automated accessibility validation.
 - [`wasm-bindgen` Web Worker example](https://rustwasm.github.io/docs/wasm-bindgen/examples/wasm-in-web-worker.html) — worker loading and ownership boundaries.
 - [`gloo-worker`](https://docs.rs/gloo-worker/latest/gloo_worker/) — typed worker bridges and documented serialization overhead.
-- [`indexed_db_futures`](https://docs.rs/indexed_db_futures/latest/indexed_db_futures/) — future-based IndexedDB operations and transaction behavior.
-- [MDN: Using IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB) — version changes, event-loop-bound transaction lifetime, shutdown behavior, and atomic writes.
 - [Leptos 0.8 documentation](https://docs.rs/crate/leptos/0.8.20) and [maintainer status](https://github.com/leptos-rs/leptos/issues/4707) — the stable v1 choice and the reason to keep the UI boundary replaceable.
