@@ -7,7 +7,8 @@
 //! ```no_run
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let source = "# Ada Lovelace\n\nProgrammer";
-//! let document = resumark_core::parse_markdown(source)?;
+//! let analysis = resumark_core::analyze_markdown(source, &resumark_core::ParseLimits::default());
+//! let document = analysis.document.expect("the example Markdown is valid");
 //! let compiled = resumark_render_typst::Renderer::new()?.compile(&document)?;
 //! let pdf = compiled.pdf()?;
 //! let pages = compiled.svg_pages();

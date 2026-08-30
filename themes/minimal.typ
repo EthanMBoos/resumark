@@ -175,8 +175,9 @@
         item.at("blocks"),
         inside-list: true,
       ))
-      if entry.at("ordered") {
-        enum(start: entry.at("start"), spacing: theme.list-item-gap, ..items)
+      let list-kind = entry.at("list_kind")
+      if list-kind.at("type") == "ordered" {
+        enum(start: list-kind.at("start"), spacing: theme.list-item-gap, ..items)
       } else {
         list(marker: [•], spacing: theme.list-item-gap, ..items)
       }

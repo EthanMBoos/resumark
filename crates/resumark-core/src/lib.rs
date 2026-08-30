@@ -4,15 +4,21 @@
 //! about Typst, command-line arguments, filesystems, browsers, or UI state.
 //!
 //! ```
-//! let document = resumark_core::parse_markdown("# Ada Lovelace\n\nProgrammer")?;
-//! assert_eq!(document.metadata.title, "Ada Lovelace");
-//! # Ok::<(), resumark_core::ParseError>(())
+//! use resumark_core::{ParseLimits, analyze_markdown};
+//!
+//! let analysis = analyze_markdown("# Ada Lovelace\n\nProgrammer", &ParseLimits::default());
+//! assert_eq!(analysis.document.unwrap().metadata.title, "Ada Lovelace");
 //! ```
 
 #![forbid(unsafe_code)]
 
+mod diagnostic;
 mod markdown;
 mod model;
 
-pub use markdown::{ParseError, parse_markdown};
-pub use model::{Block, Inline, ListItem, RenderDocument};
+pub use diagnostic::{Diagnostic, DiagnosticCode, Severity, SourceRange};
+pub use markdown::{Analysis, ParseLimits, analyze_markdown};
+pub use model::{
+    Block, BlockNode, HeadingLevel, Inline, InlineNode, InvalidHeadingLevel, InvalidLinkTarget,
+    LinkTarget, ListItem, ListKind, RenderDocument,
+};

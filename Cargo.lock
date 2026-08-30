@@ -1773,6 +1773,7 @@ dependencies = [
  "clap",
  "resumark-core",
  "resumark-render-typst",
+ "serde_json",
 ]
 
 [[package]]

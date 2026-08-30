@@ -315,7 +315,7 @@ Start with a fixed single-document record if that keeps the first persistence sl
 
 Choose names that let a reader predict behavior without opening the implementation:
 
-- Prefer `parse_markdown`, `validate_link`, `compile`, `export_pdf`, `load_document`, and `save_document`.
+- Prefer `analyze_markdown`, `validate_link`, `compile`, `export_pdf`, `load_document`, and `save_document`.
 - Avoid `process`, `handle`, `do_work`, `data`, `utils`, and `manager` unless those words describe a precise domain concept.
 - Follow Rust's `new`, `from_`, `as_`, `to_`, and `into_` conventions. Getters do not need a `get_` prefix.
 - Spell out project concepts. Reserve short names for tiny closures and conventional iterator variables.

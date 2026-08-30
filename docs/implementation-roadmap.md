@@ -74,6 +74,11 @@ The realistic fixture produces a selectable-text PDF and matching SVG pages thro
 
 ## Stage 1: Make the core trustworthy and readable
 
+**Status:** Implemented. The core now produces a source-ranged owned model and
+ordered diagnostics, enforces the v1 Markdown and link policy, applies named
+size and nesting limits, and protects the parser from disallowed control input.
+The native harness can print the formatted model with `resume inspect`.
+
 ### Visible outcome
 
 The CLI handles the complete v1 Markdown policy and prints source-oriented diagnostics instead of dependency errors or panics. Its formatted JSON remains easy to inspect when developing themes.
