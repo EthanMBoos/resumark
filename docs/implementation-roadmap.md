@@ -35,6 +35,9 @@ The native compiler proves the document pipeline with ordinary Rust tooling. The
 
 ## Stage 0: Build the native happy path
 
+**Status:** Implemented. The fixture builds into a two-page Letter PDF and two
+SVG previews through the project-owned model and restricted Typst adapter.
+
 ### Visible outcome
 
 Running one command turns a realistic Markdown resume into a PDF and one SVG per page. The first slice is deliberately narrow, but it exercises the real parser, typed model, trusted Typst theme, and export path rather than placeholder scaffolding.

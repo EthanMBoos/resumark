@@ -1,0 +1,17 @@
+[package]
+name = "resumark-cli"
+description = "Native development harness for the Resumark compiler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "resume"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+resumark-core = { path = "../../crates/resumark-core" }
+resumark-render-typst = { path = "../../crates/resumark-render-typst" }

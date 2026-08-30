@@ -2,6 +2,24 @@
 
 A local-first Markdown resume compiler built with Rust and WebAssembly.
 
+The first native vertical slice is implemented. It parses the realistic fixture
+into a project-owned model, compiles it with a restricted in-memory Typst world,
+and exports PDF and per-page SVG from the same compiled document:
+
+```sh
+cargo run --package resumark-cli -- \
+  build fixtures/resume.md \
+  --output target/resume.pdf
+```
+
+The command writes `target/resume.pdf`, `target/resume-1.svg`, and subsequent
+numbered SVG pages beside the PDF.
+
+Theme sizes and spacing are intentionally centralized in the `theme` dictionary
+at the top of [`themes/minimal.typ`](themes/minimal.typ). Values named `leading`
+control wrapped-line spacing; values named `gap` control spacing between blocks
+such as contact details, sections, jobs, paragraphs, and list items.
+
 Planning documents:
 
 - [Project plan](docs/project-plan.md) — product thesis, architecture, and article direction

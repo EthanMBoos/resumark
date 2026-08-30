@@ -1,0 +1,17 @@
+[package]
+name = "resumark-render-typst"
+description = "Restricted Typst renderer for Resumark documents"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+resumark-core = { path = "../resumark-core" }
+serde_json.workspace = true
+thiserror.workspace = true
+typst.workspace = true
+typst-assets.workspace = true
+typst-layout.workspace = true
+typst-pdf.workspace = true
+typst-svg.workspace = true
