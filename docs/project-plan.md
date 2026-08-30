@@ -2,6 +2,12 @@
 
 A side-project brief for building a fast, local-first resume editor in Rust and WebAssembly, then writing about what the project reveals about performance, document rendering, and choosing where Rust actually helps.
 
+## Implementation plans
+
+This document describes the product and its technical thesis. The executable build sequence lives in the [implementation roadmap](implementation-roadmap.md), with the project-specific Rust conventions in the [Rust engineering guide](rust-engineering-guide.md).
+
+The implementation plans deliberately build a working native compiler and test Typst in WebAssembly before investing in the full editor. Broad test, CI, and release scaffolding follows the usable product loop instead of preceding it.
+
 ## Project thesis
 
 The interesting version of this project is not "rewrite a React resume builder in Rust."
@@ -270,6 +276,8 @@ Persistence behavior:
 - Never trap the only copy of a resume in one browser profile.
 
 ## Workspace layout
+
+The layout below is the conceptual end state. To keep the early Rust code easier to navigate, the [implementation roadmap](implementation-roadmap.md) begins with model and Markdown modules together in `resumark-core`, then introduces new crate boundaries only when the browser worker or another real consumer requires them.
 
 ```text
 rust-resume/
