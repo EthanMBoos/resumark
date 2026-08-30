@@ -1,32 +1,16 @@
-//! The Typst renderer for Resumark.
-//!
-//! This crate is the only place project code imports Typst. It accepts the
-//! renderer-independent model from `resumark-core`, gives Typst the bundled
-//! template and fonts, and exports PDF and SVG from one compilation.
-//!
-//! ```no_run
-//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let source = "# Ada Lovelace\n\nProgrammer";
-//! let analysis = resumark_core::analyze_markdown(source, &resumark_core::ParseLimits::default());
-//! let document = analysis.document.expect("the example Markdown is valid");
-//! let compiled = resumark_render_typst::Renderer::new()?.compile(
-//!     &document,
-//!     &resumark_render_typst::RenderOptions::default(),
-//! )?;
-//! let pdf = compiled.pdf()?;
-//! let pages = compiled.svg_pages();
-//! assert!(!pdf.is_empty() && !pages.is_empty());
-//! # Ok(())
-//! # }
-//! ```
+//! Typst rendering for Resumark documents and themes.
 
 #![forbid(unsafe_code)]
 
 mod world;
 
+use std::fmt;
+
 use resumark_core::{Diagnostic, DiagnosticCode, PaperSize, RenderDocument};
-use serde::Serialize;
+use resumark_theme::{ThemeFile, ThemeFileError, ThemeRange};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use typst::WorldExt;
 use typst::foundations::Bytes;
 use typst_layout::PagedDocument;
 
@@ -37,9 +21,72 @@ const BUNDLED_FONT_BYTES: &[&[u8]] = &[
     include_bytes!("../../../fonts/libertinus/LibertinusSerif-Italic.otf"),
     include_bytes!("../../../fonts/libertinus/LibertinusSerif-Bold.otf"),
     include_bytes!("../../../fonts/libertinus/LibertinusSerif-BoldItalic.otf"),
+    include_bytes!("../../../fonts/source-sans/SourceSans3-Regular.otf"),
+    include_bytes!("../../../fonts/source-sans/SourceSans3-It.otf"),
+    include_bytes!("../../../fonts/source-sans/SourceSans3-Semibold.otf"),
+    include_bytes!("../../../fonts/source-sans/SourceSans3-Bold.otf"),
 ];
 
-/// Bundles the project template and fonts and compiles resume documents.
+/// A theme shipped with Resumark.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BundledTheme {
+    Minimal,
+    Modern,
+    Compact,
+}
+
+impl BundledTheme {
+    #[must_use]
+    pub const fn id(self) -> &'static str {
+        match self {
+            Self::Minimal => "minimal",
+            Self::Modern => "modern",
+            Self::Compact => "compact",
+        }
+    }
+
+    #[must_use]
+    pub const fn source(self) -> &'static str {
+        match self {
+            Self::Minimal => include_str!("../../../themes/minimal.typ"),
+            Self::Modern => include_str!("../../../themes/modern.typ"),
+            Self::Compact => include_str!("../../../themes/compact.typ"),
+        }
+    }
+
+    #[must_use]
+    pub const fn all() -> &'static [Self] {
+        &[Self::Minimal, Self::Modern, Self::Compact]
+    }
+
+    pub fn file(self) -> Result<ThemeFile, ThemeFileError> {
+        ThemeFile::parse(self.source())
+    }
+}
+
+/// The bundled or user-supplied theme used for a compilation.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ThemeSelection {
+    Bundled(BundledTheme),
+    Custom(ThemeFile),
+}
+
+impl Default for ThemeSelection {
+    fn default() -> Self {
+        Self::Bundled(BundledTheme::Minimal)
+    }
+}
+
+impl ThemeSelection {
+    fn file(&self) -> Result<ThemeFile, ThemeFileError> {
+        match self {
+            Self::Bundled(theme) => theme.file(),
+            Self::Custom(theme) => Ok(theme.clone()),
+        }
+    }
+}
+
+/// Bundles the project templates and fonts and compiles resume documents.
 pub struct Renderer {
     fonts: Vec<typst::text::Font>,
 }
@@ -51,10 +98,11 @@ pub struct CompiledDocument {
 }
 
 /// Settings that affect one Typst compilation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RenderOptions {
     pub paper: PaperSize,
     pub max_pages: Option<usize>,
+    pub theme: ThemeSelection,
 }
 
 impl Default for RenderOptions {
@@ -62,6 +110,7 @@ impl Default for RenderOptions {
         Self {
             paper: PaperSize::Letter,
             max_pages: Some(2),
+            theme: ThemeSelection::default(),
         }
     }
 }
@@ -70,6 +119,7 @@ impl Default for RenderOptions {
 struct ThemeInput<'a> {
     document: &'a RenderDocument,
     settings: ThemeSettings,
+    theme: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Serialize)]
@@ -77,13 +127,41 @@ struct ThemeSettings {
     paper: PaperSize,
 }
 
-/// A failure while initializing or compiling the trusted rendering pipeline.
+/// One Typst compiler message, with a byte range when it points into the theme.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ThemeDiagnostic {
+    pub message: String,
+    pub range: Option<ThemeRange>,
+    pub hints: Vec<String>,
+}
+
+/// Structured Typst errors from compiling a theme.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ThemeCompileError {
+    pub diagnostics: Vec<ThemeDiagnostic>,
+}
+
+impl fmt::Display for ThemeCompileError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let messages = self
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.message.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        formatter.write_str(&messages)
+    }
+}
+
+impl std::error::Error for ThemeCompileError {}
+
+/// A failure while initializing or compiling the rendering pipeline.
 #[derive(Debug, Error)]
 pub enum RenderError {
     #[error("the bundled Resumark fonts could not be loaded")]
     MissingFonts,
 
-    #[error("the resume model could not be serialized for the trusted theme")]
+    #[error("the resume model could not be serialized for Typst")]
     Serialize(#[source] serde_json::Error),
 
     #[error("a bundled renderer asset has an invalid path")]
@@ -92,8 +170,11 @@ pub enum RenderError {
     #[error("the maximum page count must be at least one when specified")]
     InvalidPageLimit,
 
-    #[error("Typst could not compile the trusted resume theme:\n{0}")]
-    Compile(String),
+    #[error("the theme file is invalid: {0}")]
+    ThemeFile(#[from] ThemeFileError),
+
+    #[error("Typst could not compile the resume theme:\n{0}")]
+    Compile(ThemeCompileError),
 }
 
 /// A failure while exporting a compiled document.
@@ -104,17 +185,11 @@ pub enum ExportError {
 }
 
 impl Renderer {
-    /// Loads the four licensed Libertinus Serif faces bundled by Resumark.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`RenderError::MissingFonts`] if any bundled face is missing or
-    /// cannot be decoded by Typst.
+    /// Loads all fonts bundled by Resumark.
     pub fn new() -> Result<Self, RenderError> {
         let fonts = BUNDLED_FONT_BYTES
             .iter()
             .flat_map(|data| typst::text::Font::iter(Bytes::new(*data)))
-            .filter(|font| font.info().family == "Libertinus Serif")
             .collect::<Vec<_>>();
 
         if fonts.len() != BUNDLED_FONT_BYTES.len() {
@@ -125,11 +200,6 @@ impl Renderer {
     }
 
     /// Compiles a document once, retaining the paged result for every export.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if JSON serialization or trusted-theme compilation
-    /// fails.
     pub fn compile(
         &self,
         document: &RenderDocument,
@@ -139,15 +209,17 @@ impl Renderer {
             return Err(RenderError::InvalidPageLimit);
         }
 
+        let theme = options.theme.file()?;
         let input = ThemeInput {
             document,
             settings: ThemeSettings {
                 paper: options.paper,
             },
+            theme: theme.control_values(),
         };
         let json = serde_json::to_vec_pretty(&input).map_err(RenderError::Serialize)?;
-        let world =
-            ResumarkWorld::new(json, self.fonts.clone()).ok_or(RenderError::InvalidBundledPath)?;
+        let world = ResumarkWorld::new(json, theme.source().to_owned(), self.fonts.clone())
+            .ok_or(RenderError::InvalidBundledPath)?;
         let result = typst::compile::<PagedDocument>(&world);
 
         match result.output {
@@ -158,32 +230,41 @@ impl Renderer {
                     diagnostics,
                 })
             }
-            Err(diagnostics) => {
-                let messages = diagnostics
+            Err(diagnostics) => Err(RenderError::Compile(ThemeCompileError {
+                diagnostics: diagnostics
                     .iter()
-                    .map(|diagnostic| diagnostic.message.to_string())
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                Err(RenderError::Compile(messages))
-            }
+                    .map(|diagnostic| ThemeDiagnostic {
+                        message: diagnostic.message.to_string(),
+                        range: (diagnostic.span.id() == Some(world.theme_id()))
+                            .then(|| world.range(diagnostic.span))
+                            .flatten()
+                            .map(|range| ThemeRange {
+                                start: range.start,
+                                end: range.end,
+                            }),
+                        hints: diagnostic
+                            .hints
+                            .iter()
+                            .map(|hint| hint.v.to_string())
+                            .collect(),
+                    })
+                    .collect(),
+            })),
         }
     }
 }
 
 impl CompiledDocument {
-    /// Number of pages shared by every export format.
     #[must_use]
     pub fn page_count(&self) -> usize {
         self.document.pages().len()
     }
 
-    /// Non-fatal diagnostics produced after successful layout.
     #[must_use]
     pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.diagnostics
     }
 
-    /// Exports every page as a self-contained SVG string.
     #[must_use]
     pub fn svg_pages(&self) -> Vec<String> {
         self.document
@@ -193,11 +274,6 @@ impl CompiledDocument {
             .collect()
     }
 
-    /// Exports the same paged document as a selectable-text PDF.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if Typst's PDF exporter rejects the compiled document.
     pub fn pdf(&self) -> Result<Vec<u8>, ExportError> {
         typst_pdf::pdf(&self.document, &typst_pdf::PdfOptions::default())
             .map_err(|errors| ExportError::Pdf(format!("{errors:?}")))
@@ -226,25 +302,47 @@ mod tests {
     use super::*;
 
     #[test]
-    fn renderer_loads_only_the_four_bundled_font_faces() {
+    fn renderer_loads_the_bundled_font_faces() {
         let renderer = Renderer::new().expect("the bundled fonts should decode");
-
-        assert_eq!(renderer.fonts.len(), 4);
-        assert!(
-            renderer
-                .fonts
-                .iter()
-                .all(|font| font.info().family == "Libertinus Serif")
-        );
+        assert_eq!(renderer.fonts.len(), BUNDLED_FONT_BYTES.len());
     }
 
     #[test]
-    fn paper_size_reaches_the_trusted_theme() {
+    fn paper_size_reaches_the_theme() {
         let letter = first_page_size(PaperSize::Letter);
         let a4 = first_page_size(PaperSize::A4);
 
         assert_close(letter, (612.0, 792.0));
         assert_close(a4, (595.28, 841.89));
+    }
+
+    #[test]
+    fn every_bundled_theme_compiles() {
+        for theme in BundledTheme::all() {
+            compile_test_document(ThemeSelection::Bundled(*theme))
+                .unwrap_or_else(|error| panic!("{} failed: {error}", theme.id()));
+        }
+    }
+
+    #[test]
+    fn theme_errors_point_into_custom_source() {
+        let mut source = BundledTheme::Minimal.source().to_owned();
+        source.push_str("\n#this-function-does-not-exist()\n");
+        let theme = ThemeFile::parse(source).expect("the manifest is valid");
+        let error = match compile_test_document(ThemeSelection::Custom(theme)) {
+            Ok(_) => panic!("the Typst source should fail"),
+            Err(error) => error,
+        };
+        let RenderError::Compile(error) = error else {
+            panic!("expected a Typst compile error");
+        };
+
+        assert!(
+            error
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.range.is_some())
+        );
     }
 
     #[test]
@@ -261,21 +359,38 @@ mod tests {
         assert!(page_limit_diagnostics(3, None).is_empty());
     }
 
+    fn compile_test_document(theme: ThemeSelection) -> Result<CompiledDocument, RenderError> {
+        let analysis = resumark_core::analyze_markdown(
+            "# Jane Doe\n\nEngineer",
+            &resumark_core::ParseLimits::default(),
+        );
+        let document = analysis.document.expect("the test Markdown is valid");
+        Renderer::new()?.compile(
+            &document,
+            &RenderOptions {
+                paper: PaperSize::Letter,
+                max_pages: None,
+                theme,
+            },
+        )
+    }
+
     fn first_page_size(paper: PaperSize) -> (f64, f64) {
+        let options = RenderOptions {
+            paper,
+            ..RenderOptions::default()
+        };
         let analysis = resumark_core::analyze_markdown(
             "# Jane Doe\n\nEngineer",
             &resumark_core::ParseLimits::default(),
         );
         let document = analysis.document.expect("the test Markdown is valid");
         let renderer = Renderer::new().expect("the bundled fonts should decode");
-        let options = RenderOptions {
-            paper,
-            max_pages: None,
-        };
         let compiled = renderer
             .compile(&document, &options)
-            .expect("the trusted theme should compile");
+            .expect("the bundled theme should compile");
         let size = compiled.document.pages()[0].frame.size();
+        drop(compiled);
         (size.x.to_pt(), size.y.to_pt())
     }
 

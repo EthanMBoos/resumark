@@ -2,7 +2,8 @@
   "name": "resumark-browser-check",
   "private": true,
   "scripts": {
-    "build:web": "cd apps/web && trunk build --release --locked",
+    "dev:web": "cd apps/web && sh ../../scripts/rustup-exec.sh trunk serve --open --locked",
+    "build:web": "cd apps/web && sh ../../scripts/rustup-exec.sh trunk build --release --locked",
     "test:web": "npm run build:web && playwright test"
   },
   "devDependencies": {

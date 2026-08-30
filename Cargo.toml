@@ -4,6 +4,7 @@ members = [
     "apps/web",
     "crates/resumark-core",
     "crates/resumark-render-typst",
+    "crates/resumark-theme",
 ]
 resolver = "3"
 
@@ -26,7 +27,9 @@ typst-pdf = "=0.15.1"
 typst-svg = "=0.15.1"
 js-sys = "0.3"
 wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
 web-sys = "0.3"
+leptos = { version = "=0.8.20", default-features = false, features = ["csr"] }
 
 [profile.release]
 lto = "thin"

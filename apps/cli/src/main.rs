@@ -6,11 +6,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use resumark_core::{
     Diagnostic, PaperSize, ParseLimits, RenderDocument, Severity, SourceRange, analyze_markdown,
 };
-use resumark_render_typst::{RenderOptions, Renderer};
+use resumark_render_typst::{BundledTheme, RenderOptions, Renderer, ThemeSelection};
+use resumark_theme::ThemeFile;
 
 #[derive(Debug, Parser)]
 #[command(name = "resume", about = "Compile a Markdown resume with Resumark")]
@@ -37,6 +38,14 @@ enum Command {
         /// Warn when the rendered document exceeds this many pages.
         #[arg(long, default_value_t = 2, value_parser = parse_page_limit)]
         max_pages: usize,
+
+        /// Bundled theme to use. Defaults to minimal.
+        #[arg(long, value_enum, conflicts_with = "theme_file")]
+        theme: Option<ThemeName>,
+
+        /// Custom Resumark .typ theme file.
+        #[arg(long, conflicts_with = "theme")]
+        theme_file: Option<PathBuf>,
     },
 
     /// Print the analyzed, renderer-independent document as formatted JSON.
@@ -44,6 +53,36 @@ enum Command {
         /// Markdown resume to analyze.
         input: PathBuf,
     },
+
+    /// List the bundled starter themes.
+    Themes,
+
+    /// Copy a bundled theme to a file you can customize.
+    ExportTheme {
+        /// Bundled theme to copy.
+        #[arg(value_enum)]
+        theme: ThemeName,
+
+        /// Destination .typ file.
+        output: PathBuf,
+    },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum ThemeName {
+    Minimal,
+    Modern,
+    Compact,
+}
+
+impl From<ThemeName> for BundledTheme {
+    fn from(value: ThemeName) -> Self {
+        match value {
+            ThemeName::Minimal => Self::Minimal,
+            ThemeName::Modern => Self::Modern,
+            ThemeName::Compact => Self::Compact,
+        }
+    }
 }
 
 fn main() -> Result<()> {
@@ -55,12 +94,30 @@ fn main() -> Result<()> {
             output_dir,
             paper,
             max_pages,
-        } => build(&input, &output_dir, paper, max_pages),
+            theme,
+            theme_file,
+        } => build(
+            &input,
+            &output_dir,
+            paper,
+            max_pages,
+            theme,
+            theme_file.as_deref(),
+        ),
         Command::Inspect { input } => inspect(&input),
+        Command::Themes => list_themes(),
+        Command::ExportTheme { theme, output } => export_theme(theme, &output),
     }
 }
 
-fn build(input: &Path, output_dir: &Path, paper: PaperSize, max_pages: usize) -> Result<()> {
+fn build(
+    input: &Path,
+    output_dir: &Path,
+    paper: PaperSize,
+    max_pages: usize,
+    theme: Option<ThemeName>,
+    theme_file: Option<&Path>,
+) -> Result<()> {
     let markdown = read_markdown(input)?;
     let document = valid_document(input, &markdown)?;
 
@@ -68,6 +125,7 @@ fn build(input: &Path, output_dir: &Path, paper: PaperSize, max_pages: usize) ->
     let options = RenderOptions {
         paper,
         max_pages: Some(max_pages),
+        theme: load_theme(theme, theme_file)?,
     };
     let compiled = renderer
         .compile(&document, &options)
@@ -96,6 +154,36 @@ fn build(input: &Path, output_dir: &Path, paper: PaperSize, max_pages: usize) ->
         paper,
         input.display(),
     );
+    Ok(())
+}
+
+fn load_theme(theme: Option<ThemeName>, theme_file: Option<&Path>) -> Result<ThemeSelection> {
+    if let Some(path) = theme_file {
+        let source = fs::read_to_string(path)
+            .with_context(|| format!("could not read theme {}", path.display()))?;
+        let theme = ThemeFile::parse(source)
+            .with_context(|| format!("could not parse theme {}", path.display()))?;
+        return Ok(ThemeSelection::Custom(theme));
+    }
+
+    Ok(ThemeSelection::Bundled(
+        theme.map_or(BundledTheme::Minimal, Into::into),
+    ))
+}
+
+fn list_themes() -> Result<()> {
+    for theme in BundledTheme::all() {
+        let file = theme.file().context("a bundled theme is invalid")?;
+        println!("{}\t{}", theme.id(), file.manifest().description);
+    }
+    Ok(())
+}
+
+fn export_theme(theme: ThemeName, output: &Path) -> Result<()> {
+    let theme = BundledTheme::from(theme);
+    fs::write(output, theme.source())
+        .with_context(|| format!("could not write {}", output.display()))?;
+    println!("Exported {} to {}", theme.id(), output.display());
     Ok(())
 }
 

@@ -3,7 +3,10 @@
 #![forbid(unsafe_code)]
 
 use resumark_core::{ParseLimits, analyze_markdown};
-use resumark_render_typst::{RenderOptions, Renderer};
+use resumark_render_typst::{
+    RenderError, RenderOptions, Renderer, ThemeDiagnostic, ThemeSelection,
+};
+use resumark_theme::ThemeFile;
 use resumark_web::{RenderRequest, RenderResponse};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 use web_sys::{DedicatedWorkerGlobalScope, MessageEvent};
@@ -33,6 +36,7 @@ fn start_worker() -> Result<(), JsValue> {
 fn handle_message(value: JsValue, renderer: &Renderer) -> RenderResponse {
     let Some(json) = value.as_string() else {
         return RenderResponse::Failed {
+            revision: None,
             message: "the worker received a render request that was not text".to_owned(),
         };
     };
@@ -40,6 +44,7 @@ fn handle_message(value: JsValue, renderer: &Renderer) -> RenderResponse {
         Ok(request) => request,
         Err(error) => {
             return RenderResponse::Failed {
+                revision: None,
                 message: format!("the worker could not read the render request: {error}"),
             };
         }
@@ -49,21 +54,55 @@ fn handle_message(value: JsValue, renderer: &Renderer) -> RenderResponse {
 }
 
 fn render(request: RenderRequest, renderer: &Renderer) -> RenderResponse {
+    let revision = request.revision;
     let analysis = analyze_markdown(&request.markdown, &ParseLimits::default());
     let Some(document) = analysis.document else {
-        return RenderResponse::Rejected {
+        return RenderResponse::ResumeRejected {
+            revision,
             diagnostics: analysis.diagnostics,
         };
+    };
+
+    let theme = match ThemeFile::parse(request.theme_source) {
+        Ok(theme) => theme,
+        Err(error) => {
+            return RenderResponse::ThemeRejected {
+                revision,
+                diagnostics: vec![ThemeDiagnostic {
+                    message: error.message,
+                    range: error.range,
+                    hints: Vec::new(),
+                }],
+            };
+        }
     };
 
     let options = RenderOptions {
         paper: request.paper,
         max_pages: request.max_pages,
+        theme: ThemeSelection::Custom(theme),
     };
     let compiled = match renderer.compile(&document, &options) {
         Ok(compiled) => compiled,
+        Err(RenderError::ThemeFile(error)) => {
+            return RenderResponse::ThemeRejected {
+                revision,
+                diagnostics: vec![ThemeDiagnostic {
+                    message: error.message,
+                    range: error.range,
+                    hints: Vec::new(),
+                }],
+            };
+        }
+        Err(RenderError::Compile(error)) => {
+            return RenderResponse::ThemeRejected {
+                revision,
+                diagnostics: error.diagnostics,
+            };
+        }
         Err(error) => {
             return RenderResponse::Failed {
+                revision: Some(revision),
                 message: error.to_string(),
             };
         }
@@ -72,12 +111,14 @@ fn render(request: RenderRequest, renderer: &Renderer) -> RenderResponse {
         Ok(pdf) => pdf,
         Err(error) => {
             return RenderResponse::Failed {
+                revision: Some(revision),
                 message: error.to_string(),
             };
         }
     };
 
     RenderResponse::Rendered {
+        revision,
         svg_pages: compiled.svg_pages(),
         pdf,
         diagnostics: compiled.diagnostics().to_vec(),
@@ -88,7 +129,7 @@ fn post_response(scope: &DedicatedWorkerGlobalScope, response: &RenderResponse) 
     let message = match serde_json::to_string(response) {
         Ok(message) => message,
         Err(error) => format!(
-            r#"{{"status":"failed","message":"could not serialize worker response: {error}"}}"#
+            r#"{{"status":"failed","revision":null,"message":"could not serialize worker response: {error}"}}"#
         ),
     };
 

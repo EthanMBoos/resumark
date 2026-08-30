@@ -1,6 +1,9 @@
 # Bundled fonts
 
-Resumark includes the four Libertinus Serif faces used by the current theme:
+Resumark includes two font families. The renderer embeds only these files, so
+the browser and CLI produce the same output without fetching fonts.
+
+## Libertinus Serif
 
 - Regular
 - Italic
@@ -8,9 +11,16 @@ Resumark includes the four Libertinus Serif faces used by the current theme:
 - Bold Italic
 
 The files under [`libertinus/`](libertinus/) come from `typst-assets` 0.15.1.
-They are bundled directly so the WASM build does not include Typst's other
-fonts. Libertinus uses the SIL Open Font License 1.1. Its copyright notice and
-license are in [`libertinus/OFL.txt`](libertinus/OFL.txt).
+Libertinus uses the SIL Open Font License 1.1. Its notice and license are in
+[`libertinus/OFL.txt`](libertinus/OFL.txt).
 
-- Libertinus project: <https://github.com/alerque/libertinus>
-- Typst assets: <https://github.com/typst/typst-assets>
+## Source Sans 3
+
+- Regular
+- Italic
+- Semibold
+- Bold
+
+The files under [`source-sans/`](source-sans/) come from Adobe Source Sans
+3.052. Source Sans uses the SIL Open Font License 1.1. Its notice and license
+are in [`source-sans/LICENSE.md`](source-sans/LICENSE.md).

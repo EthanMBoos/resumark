@@ -15,4 +15,5 @@ anyhow.workspace = true
 clap.workspace = true
 resumark-core = { path = "../../crates/resumark-core" }
 resumark-render-typst = { path = "../../crates/resumark-render-typst" }
+resumark-theme = { path = "../../crates/resumark-theme" }
 serde_json.workspace = true

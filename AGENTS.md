@@ -15,7 +15,8 @@ edited outside Resumark in the user's Markdown editor.
 - User Markdown is data and is never inserted into Typst source.
 - Preview SVGs and the PDF come from the same compile.
 - Resume content stays in the browser.
-- Invalid source has no active preview or PDF download.
+- Invalid Markdown clears the preview and PDF download.
+- Invalid theme source keeps the last valid preview but disables PDF download.
 - Replaced Blob URLs are revoked.
 - Typst and browser types stay out of the core model.
 
@@ -34,7 +35,8 @@ For each run:
 2. Stop an old Resumark process if it owns the port. Do not kill an unknown
    process.
 3. Run `npm run test:web` from the repository root.
-4. Check the preview, PDF download, and browser console.
+4. Check theme controls, failure recovery, the preview, downloads, and browser
+   console.
 5. Inspect the screenshot under `target/` after visible changes.
 6. Check port 8080 again. It must be clear.
 

@@ -1,5 +1,6 @@
 [package]
 name = "resumark-web"
+autobins = false
 description = "Browser app and render worker for Resumark"
 version.workspace = true
 edition.workspace = true
@@ -19,11 +20,14 @@ path = "src/bin/worker.rs"
 
 [dependencies]
 js-sys.workspace = true
+leptos.workspace = true
 resumark-core = { path = "../../crates/resumark-core" }
 resumark-render-typst = { path = "../../crates/resumark-render-typst" }
+resumark-theme = { path = "../../crates/resumark-theme" }
 serde.workspace = true
 serde_json.workspace = true
 wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
 
 [dependencies.web-sys]
 workspace = true
@@ -35,6 +39,12 @@ features = [
     "Document",
     "Element",
     "ErrorEvent",
+    "Event",
+    "File",
+    "FileList",
+    "HtmlInputElement",
+    "HtmlSelectElement",
+    "HtmlTextAreaElement",
     "MessageEvent",
     "Url",
     "Window",
