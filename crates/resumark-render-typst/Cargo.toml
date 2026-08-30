@@ -1,6 +1,6 @@
 [package]
 name = "resumark-render-typst"
-description = "Restricted Typst renderer for Resumark documents"
+description = "Typst renderer for Resumark documents"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

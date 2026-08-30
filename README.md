@@ -1,44 +1,51 @@
 # Resumark
 
-A local-first Markdown resume compiler built with Rust and WebAssembly.
+Keep your resume as a Markdown file you control. Edit it in Obsidian, VS Code,
+Sublime, or any other Markdown editor. Resumark turns that file into a styled
+PDF without storing it.
 
-The first native vertical slice is implemented. It parses the realistic fixture
-into a project-owned model, compiles it with a restricted in-memory Typst world,
-and exports PDF and per-page SVG from the same compiled document:
+Use the web app to choose a theme and preview the pages. Use the CLI for the
+same workflow from a terminal.
+
+Rust parses the Markdown and gives Typst the resume data, theme, settings, and
+fonts. One Typst compile produces both the PDF and SVG preview.
+
+## CLI
 
 ```sh
 cargo run --package resumark-cli -- \
-  build fixtures/resume.md \
+  build examples/resume.md \
   --paper letter \
   --output-dir target/letter
 ```
 
-The command writes `target/letter/resume.pdf`, `target/letter/resume-1.svg`,
-and subsequent numbered SVG pages. Use `--paper a4` for A4 output and
-`--max-pages N` to change the default two-page warning threshold; exceeding the
-threshold reports a warning without discarding valid output.
+This writes `resume.pdf` and one SVG per page. Use `--paper a4` for A4.
 
-To inspect the source-aware document model without rendering it:
+Inspect the parsed document without rendering it:
 
 ```sh
-cargo run --package resumark-cli -- inspect fixtures/resume.md
+cargo run --package resumark-cli -- inspect examples/resume.md
 ```
 
-The analyzer reports invalid links, raw HTML, unsafe control characters, and
-configured input limits with stable diagnostic codes and Markdown line/column
-locations. Valid nodes retain UTF-8 byte ranges for the future browser editor.
+## Browser check
 
-Theme sizes and spacing are intentionally centralized in the `theme` dictionary
-at the top of [`themes/minimal.typ`](themes/minimal.typ). Values named `leading`
-control wrapped-line spacing; values named `gap` control spacing between blocks
-such as contact details, sections, jobs, paragraphs, and list items.
+```sh
+npm install
+npx playwright install chromium
+npm run test:web
+```
 
-Planning documents:
+Playwright builds the release WASM and runs the browser workflow on port 8080.
+See [AGENTS.md](AGENTS.md) for the full check.
 
-- [Project plan](docs/project-plan.md) — product thesis, architecture, and article direction
-- [Implementation roadmap](docs/implementation-roadmap.md) — build-first stages for a usable local v1
-- [Rust engineering guide](docs/rust-engineering-guide.md) — readability-first conventions and technical boundaries
+## Resume spacing
 
-The plans deliberately favor a good-enough single-resume v1. New layers,
-dependencies, and scaffolding are deferred until current behavior demonstrates
-that they earn their place.
+Edit the `theme` dictionary at the top of
+[`themes/minimal.typ`](themes/minimal.typ). `leading` controls line spacing and
+`gap` controls space between blocks.
+
+## Docs
+
+- [Product](docs/project-plan.md)
+- [Build order](docs/implementation-roadmap.md)
+- [Rust structure](docs/rust-engineering-guide.md)

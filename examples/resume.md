@@ -46,7 +46,7 @@ Product-minded software engineer with eight years of experience building dependa
 
 - Building a Rust and WebAssembly application that converts native Markdown into exact SVG page previews and selectable-text PDFs through Typst.
 - Keeps user content local, passes a project-owned typed model between parser and renderer, and treats preview/export parity as a core invariant.
-- Uses a deliberately small command-line harness during development: `resume build fixtures/resume.md`.
+- Uses a small command-line harness during development: `resume build examples/resume.md`.
 
 ### Field Notes — Offline research notebook
 

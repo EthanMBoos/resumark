@@ -1,34 +1,41 @@
-# Resumark working rules
+# Working rules
 
-Resumark is a small side project whose immediate goal is a good-enough local
-v1, not a reusable platform. Optimize for reaching a pleasant
-Markdown-to-preview-to-PDF workflow with code that is easy to read.
+Resumark turns a user-owned Markdown resume into a styled PDF. The source is
+edited outside Resumark in the user's Markdown editor.
 
-## Code must earn its place
+- Build the choose, preview, style, and download flow first.
+- Do not add a text editor, accounts, storage, autosave, versions, or document
+  collections.
+- Add code for current behavior, not possible future features.
+- Prefer plain structs, enums, owned values, and short functions.
+- Avoid generic traits and extra crates until a real second use needs them.
 
-- Add code for behavior required by the current implementation slice, a
-  boundary that would be expensive to retrofit, or a failure that would be
-  dangerous and hard to notice.
-- Do not add crates, traits, generic abstractions, protocols, configuration,
-  test infrastructure, or extension points only because a future version might
-  use them.
-- Prefer the smallest concrete implementation. Refactor after a second real
-  use case appears or the current code becomes difficult to understand.
-- Favor a working vertical slice and manual use over broad scaffolding. Add
-  focused checks for security, data loss, preview/export parity, and known
-  regressions; comprehensive automation can follow a useful product.
-- Keep Rust readable to someone who is not fluent in it: ordinary structs and
-  enums, owned values, explicit names, short control flow, and few layers.
-- Treat roadmap details as provisional. If a planned mechanism is larger than
-  the user-visible behavior it enables, implement the simpler behavior and
-  update the plan.
+## Rules that cannot break
 
-## v1 invariants worth protecting
+- User Markdown is data and is never inserted into Typst source.
+- Preview SVGs and the PDF come from the same compile.
+- Resume content stays in the browser.
+- Invalid source has no active preview or PDF download.
+- Replaced Blob URLs are revoked.
+- Typst and browser types stay out of the core model.
 
-- User Markdown is data and is never interpolated into Typst source.
-- Preview SVGs and the downloaded PDF come from the same compilation.
-- Resume content remains local and can be exported as Markdown.
-- A failed parse, render, or save does not silently destroy the last good work.
-- Typst and browser-specific types stay behind small, direct boundaries.
+## Browser verification
 
-Everything else should be justified by the next visible product outcome.
+Install once:
+
+```sh
+npm install
+npx playwright install chromium
+```
+
+For each run:
+
+1. Check port 8080: `lsof -nP -iTCP:8080 -sTCP:LISTEN`.
+2. Stop an old Resumark process if it owns the port. Do not kill an unknown
+   process.
+3. Run `npm run test:web` from the repository root.
+4. Check the preview, PDF download, and browser console.
+5. Inspect the screenshot under `target/` after visible changes.
+6. Check port 8080 again. It must be clear.
+
+Playwright must start its own server. Do not reuse an existing one.

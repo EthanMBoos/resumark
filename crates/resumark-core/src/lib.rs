@@ -1,7 +1,7 @@
 //! Resumark's renderer-independent document model and Markdown parser.
 //!
-//! This crate owns plain, serializable values. It deliberately knows nothing
-//! about Typst, command-line arguments, filesystems, browsers, or UI state.
+//! This crate owns plain, serializable values. It contains no Typst,
+//! command-line, filesystem, browser, or UI types.
 //!
 //! ```
 //! use resumark_core::{ParseLimits, analyze_markdown};

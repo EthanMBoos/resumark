@@ -1,0 +1,42 @@
+[package]
+name = "resumark-web"
+description = "Browser app and render worker for Resumark"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "resumark-web"
+path = "src/bin/app.rs"
+
+[[bin]]
+name = "resumark-worker"
+path = "src/bin/worker.rs"
+
+[dependencies]
+js-sys.workspace = true
+resumark-core = { path = "../../crates/resumark-core" }
+resumark-render-typst = { path = "../../crates/resumark-render-typst" }
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen.workspace = true
+
+[dependencies.web-sys]
+workspace = true
+features = [
+    "Blob",
+    "BlobPropertyBag",
+    "console",
+    "DedicatedWorkerGlobalScope",
+    "Document",
+    "Element",
+    "ErrorEvent",
+    "MessageEvent",
+    "Url",
+    "Window",
+    "Worker",
+]

@@ -69,7 +69,7 @@ pub fn analyze_markdown(source: &str, limits: &ParseLimits) -> Analysis {
 }
 
 fn markdown_options() -> Options {
-    // Parse known extensions so we can diagnose them explicitly. Never use
+    // Parse known extensions to diagnose them explicitly. Never use
     // Options::all(): new dependency syntax should require a product decision.
     Options::ENABLE_TABLES
         | Options::ENABLE_FOOTNOTES
@@ -97,7 +97,7 @@ fn validate_source(source: &str, limits: &ParseLimits) -> Vec<Diagnostic> {
                 ),
                 Some(SourceRange::new(0, source.len())),
             )
-            .with_help("shorten the source or deliberately raise ParseLimits::max_source_bytes"),
+            .with_help("shorten the source or raise ParseLimits::max_source_bytes"),
         ];
     }
 
@@ -634,15 +634,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn realistic_fixture_has_a_ranged_document() {
-        let source = include_str!("../../../fixtures/resume.md");
+    fn realistic_example_has_a_ranged_document() {
+        let source = include_str!("../../../examples/resume.md");
         let analysis = analyze_markdown(source, &ParseLimits::default());
 
         assert!(analysis.diagnostics.is_empty());
-        let document = analysis.document.expect("the fixture should be valid");
+        let document = analysis.document.expect("the example should be valid");
         assert_eq!(document.metadata.title, "Jane Doe");
 
-        let title = document.blocks.first().expect("the fixture has a title");
+        let title = document.blocks.first().expect("the example has a title");
         assert_eq!(
             source[title.range.start..title.range.end].trim(),
             "# Jane Doe"
@@ -731,8 +731,13 @@ mod tests {
         assert_eq!(
             diagnostic.range,
             Some(SourceRange::new(
-                source.find('\u{0}').expect("the fixture has a null byte"),
-                source.find('\u{0}').expect("the fixture has a null byte") + 1,
+                source
+                    .find('\u{0}')
+                    .expect("the test input has a null byte"),
+                source
+                    .find('\u{0}')
+                    .expect("the test input has a null byte")
+                    + 1,
             ))
         );
     }

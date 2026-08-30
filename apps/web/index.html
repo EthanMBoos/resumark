@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Resumark</title>
+    <link data-trunk rel="css" href="style.css" />
+    <link
+      data-trunk
+      rel="rust"
+      href="Cargo.toml"
+      data-bin="resumark-web"
+      data-type="main"
+      data-wasm-opt="z"
+      data-wasm-opt-params="--all-features"
+    />
+    <link
+      data-trunk
+      rel="rust"
+      href="Cargo.toml"
+      data-bin="resumark-worker"
+      data-type="worker"
+      data-loader-shim
+      data-wasm-opt="z"
+      data-wasm-opt-params="--all-features"
+    />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Markdown resume compiler</p>
+        <h1>Resumark</h1>
+        <p>
+          Preview the Jane Doe example and download its matching PDF.
+        </p>
+      </header>
+
+      <section class="result" aria-live="polite">
+        <div class="result-heading">
+          <div>
+            <h2>Render result</h2>
+            <p id="status">Starting render worker…</p>
+          </div>
+          <a id="download" class="download" hidden>Download PDF</a>
+        </div>
+        <div id="diagnostics" class="diagnostics"></div>
+      </section>
+
+      <section id="preview" class="preview" aria-label="Resume page previews"></section>
+    </main>
+  </body>
+</html>

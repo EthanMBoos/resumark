@@ -1,8 +1,8 @@
-//! The restricted Typst adapter for Resumark.
+//! The Typst renderer for Resumark.
 //!
 //! This crate is the only place project code imports Typst. It accepts the
-//! renderer-independent model from `resumark-core`, exposes only trusted
-//! in-memory assets to Typst, and exports PDF and SVG from one compilation.
+//! renderer-independent model from `resumark-core`, gives Typst the bundled
+//! template and fonts, and exports PDF and SVG from one compilation.
 //!
 //! ```no_run
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -39,7 +39,7 @@ const BUNDLED_FONT_BYTES: &[&[u8]] = &[
     include_bytes!("../../../fonts/libertinus/LibertinusSerif-BoldItalic.otf"),
 ];
 
-/// Creates restricted Typst worlds and compiles project-owned documents.
+/// Bundles the project template and fonts and compiles resume documents.
 pub struct Renderer {
     fonts: Vec<typst::text::Font>,
 }
@@ -86,7 +86,7 @@ pub enum RenderError {
     #[error("the resume model could not be serialized for the trusted theme")]
     Serialize(#[source] serde_json::Error),
 
-    #[error("a trusted in-memory asset has an invalid virtual path")]
+    #[error("a bundled renderer asset has an invalid path")]
     InvalidBundledPath,
 
     #[error("the maximum page count must be at least one when specified")]
@@ -217,7 +217,7 @@ fn page_limit_diagnostics(page_count: usize, max_pages: Option<usize>) -> Vec<Di
             ),
             None,
         )
-        .with_help("shorten the content or deliberately raise the maximum page count"),
+        .with_help("shorten the content or raise the maximum page count"),
     ]
 }
 
