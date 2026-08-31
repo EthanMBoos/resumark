@@ -17,6 +17,10 @@ use typst_layout::PagedDocument;
 use crate::world::ResumarkWorld;
 
 const BUNDLED_FONT_BYTES: &[&[u8]] = &[
+    include_bytes!("../../../fonts/computer-modern/cmunrm.otf"),
+    include_bytes!("../../../fonts/computer-modern/cmunti.otf"),
+    include_bytes!("../../../fonts/computer-modern/cmunbx.otf"),
+    include_bytes!("../../../fonts/computer-modern/cmunbi.otf"),
     include_bytes!("../../../fonts/libertinus/LibertinusSerif-Regular.otf"),
     include_bytes!("../../../fonts/libertinus/LibertinusSerif-Italic.otf"),
     include_bytes!("../../../fonts/libertinus/LibertinusSerif-Bold.otf"),
@@ -33,6 +37,7 @@ pub enum BundledTheme {
     Minimal,
     Modern,
     Compact,
+    Jakes,
 }
 
 impl BundledTheme {
@@ -42,6 +47,7 @@ impl BundledTheme {
             Self::Minimal => "minimal",
             Self::Modern => "modern",
             Self::Compact => "compact",
+            Self::Jakes => "jakes",
         }
     }
 
@@ -51,12 +57,13 @@ impl BundledTheme {
             Self::Minimal => include_str!("../../../themes/minimal.typ"),
             Self::Modern => include_str!("../../../themes/modern.typ"),
             Self::Compact => include_str!("../../../themes/compact.typ"),
+            Self::Jakes => include_str!("../../../themes/jakes.typ"),
         }
     }
 
     #[must_use]
     pub const fn all() -> &'static [Self] {
-        &[Self::Minimal, Self::Modern, Self::Compact]
+        &[Self::Minimal, Self::Modern, Self::Compact, Self::Jakes]
     }
 
     pub fn file(self) -> Result<ThemeFile, ThemeFileError> {

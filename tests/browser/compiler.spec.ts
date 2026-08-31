@@ -39,7 +39,7 @@ test("themes can be customized and exported with the matching PDF", async ({ pag
     .toBe(true);
 
   const firstPreviewUrl = await previews.first().getAttribute("src");
-  await page.getByLabel("Theme").selectOption("modern");
+  await page.getByLabel("Theme", { exact: true }).selectOption("jakes");
   await expect(status).toContainText("Rendered", { timeout: 120_000 });
   await expect
     .poll(() => previews.first().getAttribute("src"))
@@ -87,7 +87,7 @@ test("themes can be customized and exported with the matching PDF", async ({ pag
   const themeDownloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "Download theme" }).click();
   const themeDownload = await themeDownloadPromise;
-  expect(themeDownload.suggestedFilename()).toBe("modern.typ");
+  expect(themeDownload.suggestedFilename()).toBe("jake-s-resume.typ");
 
   await page.screenshot({ path: "target/theme-workbench.png", fullPage: true });
   expect(browserErrors).toEqual([]);

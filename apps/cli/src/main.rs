@@ -73,6 +73,7 @@ enum ThemeName {
     Minimal,
     Modern,
     Compact,
+    Jakes,
 }
 
 impl From<ThemeName> for BundledTheme {
@@ -81,6 +82,7 @@ impl From<ThemeName> for BundledTheme {
             ThemeName::Minimal => Self::Minimal,
             ThemeName::Modern => Self::Modern,
             ThemeName::Compact => Self::Compact,
+            ThemeName::Jakes => Self::Jakes,
         }
     }
 }

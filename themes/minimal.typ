@@ -1,7 +1,7 @@
 /* resumark-theme
 {
   "version": 1,
-  "name": "Minimal",
+  "name": "Default",
   "description": "A centered serif layout with quiet rules and compact spacing.",
   "controls": [
     { "kind": "font", "key": "font_family", "label": "Font", "group": "Typography", "value": "Libertinus Serif", "options": ["Libertinus Serif", "Source Sans 3"] },

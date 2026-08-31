@@ -199,6 +199,7 @@ fn App() -> impl IntoView {
         let source = match id.as_str() {
             "modern" => BundledTheme::Modern.source(),
             "compact" => BundledTheme::Compact.source(),
+            "jakes" => BundledTheme::Jakes.source(),
             _ => BundledTheme::Minimal.source(),
         }
         .to_owned();
@@ -244,9 +245,10 @@ fn App() -> impl IntoView {
 
                         <label>
                             <select aria-label="Theme" id="theme-select" prop:value=move || starter.get() on:change=select_starter>
-                                <option value="minimal">"Minimal"</option>
+                                <option value="minimal">"Default"</option>
                                 <option value="modern">"Modern"</option>
                                 <option value="compact">"Compact"</option>
+                                <option value="jakes">"Jake's Resume"</option>
                                 <option value="custom" disabled=move || starter.get() != "custom">"Custom file"</option>
                             </select>
                         </label>

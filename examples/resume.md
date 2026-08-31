@@ -63,23 +63,8 @@ Coursework included programming languages, human-computer interaction, distribut
 
 ## Skills
 
-- **Languages:** Rust, TypeScript, Python, SQL, HTML, CSS
-- **Systems:** WebAssembly, document rendering, local-first storage, command-line applications
-- **Practice:** product discovery, performance measurement, accessibility, technical writing, mentoring
+**Languages:** Rust, TypeScript, Python, SQL, HTML, CSS
 
-## Community
+**Systems:** WebAssembly, document rendering, local-first storage, command-line applications
 
-- Volunteer résumé reviewer for early-career developers transitioning from service work into technology roles.
-- Occasional speaker on making systems code readable to engineers who are still learning ownership and borrowing.
-- Conversational Spanish; comfortable collaborating across English- and Spanish-speaking teams.
-
-## Writing and Talks
-
-- **“Local First Is a Recovery Promise, Not a Cache Strategy”** — practical notes on hydration order, visible save state, and source export for small browser applications.
-- **“One Document, Two Outputs”** — conference talk showing how a shared compiled representation prevents subtle pagination differences between preview and PDF.
-- Published a short internal series that introduced Rust ownership through application boundaries and concrete examples instead of lifetime notation first.
-
-## Professional Development
-
-- W3C Web Accessibility Initiative coursework covering keyboard interaction, semantic document structure, and responsible conformance claims.
-- Facilitated quarterly incident-review workshops focused on system improvements, readable timelines, and follow-up work with named owners.
+**Practice:** product discovery, performance measurement, accessibility, technical writing, mentoring

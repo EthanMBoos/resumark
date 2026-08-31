@@ -1,7 +1,19 @@
 # Bundled fonts
 
-Resumark includes two font families. The renderer embeds only these files, so
+Resumark includes three font families. The renderer embeds only these files, so
 the browser and CLI produce the same output without fetching fonts.
+
+## CMU Serif
+
+- Roman
+- Italic
+- Bold
+- Bold Italic
+
+The files under [`computer-modern/`](computer-modern/) come from the Computer
+Modern Unicode 0.7.0 distribution. CMU Serif uses the SIL Open Font License
+1.1. Its notice and license are in
+[`computer-modern/LICENSE.txt`](computer-modern/LICENSE.txt).
 
 ## Libertinus Serif
 
