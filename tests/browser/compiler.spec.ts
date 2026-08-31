@@ -45,16 +45,20 @@ test("themes can be customized and exported with the matching PDF", async ({ pag
     .poll(() => previews.first().getAttribute("src"))
     .not.toBe(firstPreviewUrl);
 
-  const bodySize = page.locator('#theme-controls input[type="range"]').first();
-  await bodySize.evaluate((input: HTMLInputElement) => {
-    input.value = "12";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  await expect(page.getByText("Customize", { exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Text size" })).toContainText("10.5");
+  await page.getByRole("button", { name: "Increase Text size" }).click();
+  await page.getByRole("slider", { name: "Spacing" }).fill("73");
+  await page.getByRole("slider", { name: "Page margins" }).fill("67");
+  await expect(page.getByRole("slider", { name: "Spacing" })).toHaveValue("73");
+  await expect(page.getByRole("slider", { name: "Page margins" })).toHaveValue("67");
   await expect(status).toContainText("Rendered", { timeout: 120_000 });
 
-  await page.getByLabel("Edit Typst source").check();
-  const source = page.getByLabel("Theme Typst source");
-  await source.fill(`${await source.inputValue()}\n#missing-theme-function()`);
+  await page.locator("#theme-file").setInputFiles({
+    name: "broken.typ",
+    mimeType: "text/plain",
+    buffer: Buffer.from("#missing-theme-manifest()"),
+  });
   await expect(status).toContainText("Theme error", { timeout: 120_000 });
   await expect(page.getByText("This preview is from the last theme that compiled.")).toBeVisible();
   await expect(previews).not.toHaveCount(0);
@@ -63,7 +67,7 @@ test("themes can be customized and exported with the matching PDF", async ({ pag
     "true",
   );
 
-  await page.getByRole("button", { name: "Reset" }).click();
+  await page.getByLabel("Theme", { exact: true }).selectOption("modern");
   await expect(status).toContainText("Rendered", { timeout: 120_000 });
   await expect(page.getByRole("link", { name: "Download PDF" })).toHaveAttribute(
     "aria-disabled",
@@ -84,6 +88,7 @@ test("themes can be customized and exported with the matching PDF", async ({ pag
   const pdfHeader = fs.readFileSync(downloadedPath!).subarray(0, 5).toString();
   expect(pdfHeader).toBe("%PDF-");
 
+  await page.getByText("Theme files", { exact: true }).click();
   const themeDownloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "Download theme" }).click();
   const themeDownload = await themeDownloadPromise;

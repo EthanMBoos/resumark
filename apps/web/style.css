@@ -105,7 +105,8 @@ main {
 .section-heading > div,
 .result-bar,
 .theme-actions,
-.number-control,
+.customizer-control,
+.stepper,
 .color-control {
   display: flex;
   align-items: center;
@@ -210,7 +211,7 @@ main {
   border-color: #8d98a3;
 }
 
-.control-section > label:not(.file-button, .source-toggle),
+.control-section > label:not(.file-button),
 .theme-control {
   display: grid;
   gap: 0.35rem;
@@ -233,48 +234,138 @@ select {
   padding: 0.45rem 0.6rem;
 }
 
+#theme-select {
+  color: #303943;
+  font-size: 0.84rem;
+  font-weight: 680;
+  letter-spacing: -0.01em;
+}
+
 .theme-actions {
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 0.75rem;
+}
+
+.customize-heading {
+  margin: 1.15rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid #d8dce0;
+  color: #303943;
+  font-size: 0.9rem;
 }
 
 .theme-controls {
   display: grid;
-  gap: 0.8rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #d8dce0;
+  gap: 0.9rem;
+  margin-top: 0.85rem;
 }
 
-.theme-control small {
-  margin-left: 0.2rem;
+.customizer-control,
+.color-control {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.control-label,
+.preset-control legend {
+  color: #4f5963;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.stepper {
+  overflow: hidden;
+  border: 1px solid #bdc4cb;
+  border-radius: 0.4rem;
+  background: white;
+}
+
+.stepper button {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  color: #315e86;
+  background: white;
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.stepper button:hover:not(:disabled) {
+  background: #edf4fa;
+}
+
+.stepper button:disabled {
+  color: #a7afb7;
+  cursor: default;
+}
+
+.stepper output {
+  min-width: 2.8rem;
+  padding: 0 0.45rem;
+  border-right: 1px solid #d8dce0;
+  border-left: 1px solid #d8dce0;
+  color: #303943;
+  font-size: 0.8rem;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+  line-height: 2rem;
+  text-align: center;
+}
+
+.preset-control {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.preset-heading {
+  color: #4f5963;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.preset-control input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: #315e86;
+}
+
+.range-labels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   color: #7a838c;
+  font-size: 0.66rem;
   font-weight: 500;
 }
 
-.number-control {
-  gap: 0.65rem;
+.range-labels span:nth-child(2) {
+  text-align: center;
 }
 
-.number-control input {
-  min-width: 0;
-  flex: 1;
-}
-
-.number-control output {
-  width: 2.7rem;
-  color: #3d4852;
-  font-variant-numeric: tabular-nums;
+.range-labels span:last-child {
   text-align: right;
 }
 
-.color-control {
-  justify-content: space-between;
+.color-value {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.color-value output {
+  color: #69737d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.theme-control.color-control {
+  display: flex;
 }
 
 .color-control input {
-  width: 3rem;
+  width: 2.7rem;
   height: 2rem;
   padding: 0.1rem;
   border: 1px solid #bdc4cb;
@@ -282,23 +373,24 @@ select {
   background: white;
 }
 
-.source-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
+.theme-files {
   margin-top: 1rem;
-  color: #4f5963;
-  font-size: 0.82rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #d8dce0;
 }
 
-.theme-source {
-  min-height: 18rem;
-  margin-top: 0.6rem;
-  padding: 0.7rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.72rem;
-  line-height: 1.45;
-  resize: vertical;
+.theme-files summary {
+  color: #4f5963;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.theme-files p {
+  margin: 0.6rem 0;
+  color: #69737d;
+  font-size: 0.75rem;
+  line-height: 1.4;
 }
 
 .result-column {

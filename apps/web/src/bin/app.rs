@@ -29,7 +29,6 @@ fn App() -> impl IntoView {
     let starter = RwSignal::new("jakes".to_owned());
     let theme_source = RwSignal::new(BundledTheme::Jakes.source().to_owned());
     let reset_source = RwSignal::new(BundledTheme::Jakes.source().to_owned());
-    let show_source = RwSignal::new(false);
     let revision = RwSignal::new(0_u64);
     let status = RwSignal::new("Open a Markdown resume to begin.".to_owned());
     let diagnostics = RwSignal::new(Vec::<String>::new());
@@ -241,44 +240,32 @@ fn App() -> impl IntoView {
                             <button class="quiet-button" on:click=move |_| theme_source.set(reset_source.get_untracked())>"Reset"</button>
                         </div>
 
-                        <label>
-                            <select aria-label="Theme" id="theme-select" prop:value=move || starter.get() on:change=select_starter>
-                                <option value="jakes">"Jake's Resume"</option>
-                                <option value="modern">"Modern"</option>
-                                <option value="custom" disabled=move || starter.get() != "custom">"Custom file"</option>
-                            </select>
-                        </label>
+                        <select aria-label="Theme" id="theme-select" prop:value=move || starter.get() on:change=select_starter>
+                            <option value="jakes">"Jake's Resume"</option>
+                            <option value="modern">"Modern"</option>
+                            <option value="custom" disabled=move || starter.get() != "custom">"Custom file"</option>
+                        </select>
 
-                        <div class="theme-actions">
-                            <label class="file-button secondary">
-                                "Open theme.typ"
-                                <input id="theme-file" type="file" accept=".typ,text/plain" on:change=choose_custom_theme />
-                            </label>
-                            <a
-                                class="quiet-button"
-                                href=move || theme_data_url(&theme_source.get())
-                                download=move || theme_filename(&theme_source.get())
-                            >"Download theme"</a>
-                        </div>
-
+                        <h3 class="customize-heading">"Customize"</h3>
                         <div id="theme-controls" class="theme-controls">
-                            {move || control_views(theme_source).collect_view()}
+                            {move || customizer_view(theme_source)}
                         </div>
 
-                        <label class="source-toggle">
-                            <input type="checkbox" prop:checked=move || show_source.get() on:change=move |event| show_source.set(event_target_checked(&event)) />
-                            <span>"Edit Typst source"</span>
-                        </label>
-                        <Show when=move || show_source.get()>
-                            <textarea
-                                id="theme-source"
-                                class="theme-source"
-                                aria-label="Theme Typst source"
-                                spellcheck="false"
-                                prop:value=move || theme_source.get()
-                                on:input=move |event| theme_source.set(leptos::prelude::event_target_value(&event))
-                            ></textarea>
-                        </Show>
+                        <details class="theme-files">
+                            <summary>"Theme files"</summary>
+                            <p>"Open a custom theme or save this one as a .typ file."</p>
+                            <div class="theme-actions">
+                                <label class="file-button secondary">
+                                    "Open theme.typ"
+                                    <input id="theme-file" type="file" accept=".typ,text/plain" on:change=choose_custom_theme />
+                                </label>
+                                <a
+                                    class="quiet-button"
+                                    href=move || theme_data_url(&theme_source.get())
+                                    download=move || theme_filename(&theme_source.get())
+                                >"Download theme"</a>
+                            </div>
+                        </details>
                     </section>
                 </aside>
 
@@ -320,83 +307,171 @@ fn App() -> impl IntoView {
     }
 }
 
-fn control_views(theme_source: RwSignal<String>) -> impl Iterator<Item = AnyView> {
-    let controls = ThemeFile::parse(theme_source.get())
-        .map(|theme| theme.manifest().controls.clone())
-        .unwrap_or_default();
-
-    controls.into_iter().map(move |control| match control {
-        ThemeControl::Number {
+fn customizer_view(theme_source: RwSignal<String>) -> AnyView {
+    let Ok(theme) = ThemeFile::parse(theme_source.get()) else {
+        return ().into_any();
+    };
+    let controls = &theme.manifest().controls;
+    let font = controls.iter().find_map(|control| match control {
+        ThemeControl::Font {
             key,
-            label,
+            value,
+            options,
+            ..
+        } if key == "font_family" => Some((key.clone(), value.clone(), options.clone())),
+        _ => None,
+    });
+    let body_size = number_bounds(controls, "body_size_pt");
+    let name_size = number_bounds(controls, "title_size_pt");
+    let has_spacing = ["body_leading_em", "section_gap_pt", "entry_gap_pt"]
+        .iter()
+        .all(|key| number_bounds(controls, key).is_some());
+    let has_margins = ["page_margin_x_in", "page_margin_y_in"]
+        .iter()
+        .all(|key| number_bounds(controls, key).is_some());
+    let main_color = color_value(controls, "text_color");
+    let accent_color = color_value(controls, "accent_color")
+        .map(|value| ("accent_color".to_owned(), value))
+        .or_else(|| {
+            color_value(controls, "rule_color").map(|value| ("rule_color".to_owned(), value))
+        });
+
+    view! {
+        {font.map(|(key, value, options)| view! {
+            <label class="theme-control">
+                <span>"Font"</span>
+                <select
+                    aria-label="Font"
+                    prop:value=value
+                    on:change=move |event| update_control(
+                        theme_source,
+                        &key,
+                        ThemeValue::Text(leptos::prelude::event_target_value(&event)),
+                    )
+                >
+                    {options.into_iter().map(|option| view! {
+                        <option value=option.clone()>{option.clone()}</option>
+                    }).collect_view()}
+                </select>
+            </label>
+        })}
+        {body_size.map(|(value, min, max, step)| size_stepper(
+            theme_source,
+            "body_size_pt",
+            "Text size",
             value,
             min,
             max,
             step,
-            unit,
-            ..
-        } => {
-            let control_key = key.clone();
-            view! {
-                <label class="theme-control">
-                    <span>{label} <small>{unit}</small></span>
-                    <div class="number-control">
-                        <input
-                            type="range"
-                            min=min
-                            max=max
-                            step=step
-                            prop:value=value
-                            on:input=move |event| {
-                                if let Ok(value) = leptos::prelude::event_target_value(&event).parse() {
-                                    update_control(theme_source, &control_key, ThemeValue::Number(value));
-                                }
-                            }
-                        />
-                        <output>{move || control_number(theme_source, &key).unwrap_or(value)}</output>
-                    </div>
-                </label>
-            }
-            .into_any()
-        }
-        ThemeControl::Color { key, label, value, .. } => {
-            let control_key = key.clone();
-            view! {
-                <label class="theme-control color-control">
-                    <span>{label}</span>
-                    <input
-                        type="color"
-                        prop:value=value
-                        on:input=move |event| update_control(
-                            theme_source,
-                            &control_key,
-                            ThemeValue::Text(leptos::prelude::event_target_value(&event)),
-                        )
-                    />
-                </label>
-            }
-            .into_any()
-        }
-        ThemeControl::Font { key, label, value, options, .. } => {
-            let control_key = key;
-            view! {
-                <label class="theme-control">
-                    <span>{label}</span>
-                    <select
-                        prop:value=value
-                        on:change=move |event| update_control(
-                            theme_source,
-                            &control_key,
-                            ThemeValue::Text(leptos::prelude::event_target_value(&event)),
-                        )
-                    >
-                        {options.into_iter().map(|option| view! { <option value=option.clone()>{option.clone()}</option> }).collect_view()}
-                    </select>
-                </label>
-            }
-            .into_any()
-        }
-    })
+        ))}
+        {name_size.map(|(value, min, max, step)| size_stepper(
+            theme_source,
+            "title_size_pt",
+            "Name size",
+            value,
+            min,
+            max,
+            step,
+        ))}
+        {has_spacing.then(|| scale_control(theme_source, "Spacing", "spacing"))}
+        {has_margins.then(|| scale_control(theme_source, "Page margins", "margins"))}
+        {main_color.map(|value| color_control(theme_source, "text_color", "Main text", value))}
+        {accent_color.map(|(key, value)| color_control(theme_source, &key, "Accent", value))}
+    }
+    .into_any()
+}
+
+fn size_stepper(
+    theme_source: RwSignal<String>,
+    key: &'static str,
+    label: &'static str,
+    value: f64,
+    min: f64,
+    max: f64,
+    step: f64,
+) -> AnyView {
+    view! {
+        <div class="customizer-control">
+            <span class="control-label">{label}</span>
+            <div class="stepper" role="group" aria-label=label>
+                <button
+                    type="button"
+                    aria-label=format!("Decrease {label}")
+                    disabled=move || control_number(theme_source, key).is_some_and(|value| value <= min)
+                    on:click=move |_| change_number(theme_source, key, -step, min, max)
+                >"−"</button>
+                <output>{move || format_number(control_number(theme_source, key).unwrap_or(value))}</output>
+                <button
+                    type="button"
+                    aria-label=format!("Increase {label}")
+                    disabled=move || control_number(theme_source, key).is_some_and(|value| value >= max)
+                    on:click=move |_| change_number(theme_source, key, step, min, max)
+                >"+"</button>
+            </div>
+        </div>
+    }
+    .into_any()
+}
+
+fn scale_control(
+    theme_source: RwSignal<String>,
+    label: &'static str,
+    kind: &'static str,
+) -> AnyView {
+    let choices = preset_choices(kind);
+    view! {
+        <label class="preset-control">
+            <span class="preset-heading">{label}</span>
+            <input
+                type="range"
+                aria-label=label
+                min="0"
+                max="100"
+                step="1"
+                prop:value=move || scale_position(theme_source, kind)
+                on:input=move |event| {
+                    let position = leptos::prelude::event_target_value(&event)
+                        .parse::<f64>()
+                        .unwrap_or(50.0);
+                    apply_scale(theme_source, kind, position);
+                }
+            />
+            <div class="range-labels" aria-hidden="true">
+                {choices.into_iter().map(|choice| view! { <span>{choice}</span> }).collect_view()}
+            </div>
+        </label>
+    }
+    .into_any()
+}
+
+fn color_control(
+    theme_source: RwSignal<String>,
+    key: &str,
+    label: &'static str,
+    value: String,
+) -> AnyView {
+    let input_key = key.to_owned();
+    let update_key = key.to_owned();
+    let output_key = key.to_owned();
+    view! {
+        <label class="theme-control color-control">
+            <span>{label}</span>
+            <span class="color-value">
+                <output>{move || control_text(theme_source, &output_key).unwrap_or_else(|| value.clone())}</output>
+                <input
+                    aria-label=label
+                    type="color"
+                    prop:value=move || control_text(theme_source, &input_key).unwrap_or_default()
+                    on:input=move |event| update_control(
+                        theme_source,
+                        &update_key,
+                        ThemeValue::Text(leptos::prelude::event_target_value(&event)),
+                    )
+                />
+            </span>
+        </label>
+    }
+    .into_any()
 }
 
 fn update_control(theme_source: RwSignal<String>, key: &str, value: ThemeValue) {
@@ -406,6 +481,149 @@ fn update_control(theme_source: RwSignal<String>, key: &str, value: ThemeValue) 
     if theme.set_control_value(key, value).is_ok() {
         theme_source.set(theme.source().to_owned());
     }
+}
+
+fn update_numbers(theme_source: RwSignal<String>, values: &[(&str, f64)]) {
+    let Ok(mut theme) = ThemeFile::parse(theme_source.get_untracked()) else {
+        return;
+    };
+    for (key, value) in values {
+        if theme
+            .set_control_value(key, ThemeValue::Number(*value))
+            .is_err()
+        {
+            return;
+        }
+    }
+    theme_source.set(theme.source().to_owned());
+}
+
+fn change_number(theme_source: RwSignal<String>, key: &str, delta: f64, min: f64, max: f64) {
+    let Some(current) = control_number(theme_source, key) else {
+        return;
+    };
+    let next = ((current + delta).clamp(min, max) * 100.0).round() / 100.0;
+    update_control(theme_source, key, ThemeValue::Number(next));
+}
+
+fn preset_choices(kind: &str) -> [&'static str; 3] {
+    if kind == "spacing" {
+        ["Compact", "Balanced", "Open"]
+    } else {
+        ["Narrow", "Standard", "Wide"]
+    }
+}
+
+fn apply_scale(theme_source: RwSignal<String>, kind: &str, position: f64) {
+    let source = theme_source.get_untracked();
+    let choices = preset_choices(kind);
+    let (lower, upper, progress) = if position <= 50.0 {
+        (choices[0], choices[1], position / 50.0)
+    } else {
+        (choices[1], choices[2], (position - 50.0) / 50.0)
+    };
+    let lower = preset_values(&source, kind, &lower.to_ascii_lowercase());
+    let upper = preset_values(&source, kind, &upper.to_ascii_lowercase());
+    let values = lower
+        .iter()
+        .zip(upper.iter())
+        .map(|((key, start), (_, end))| {
+            let value = start + ((end - start) * progress);
+            (*key, (value * 10_000.0).round() / 10_000.0)
+        })
+        .collect::<Vec<_>>();
+    update_numbers(theme_source, &values);
+}
+
+fn scale_position(theme_source: RwSignal<String>, kind: &str) -> f64 {
+    let source = theme_source.get();
+    let choices = preset_choices(kind);
+    let stops = choices.map(|choice| {
+        preset_values(&source, kind, &choice.to_ascii_lowercase())
+            .first()
+            .copied()
+    });
+    let Some((key, compact)) = stops[0] else {
+        return 50.0;
+    };
+    let Some((_, balanced)) = stops[1] else {
+        return 50.0;
+    };
+    let Some((_, open)) = stops[2] else {
+        return 50.0;
+    };
+    let Some(actual) = control_number(theme_source, key) else {
+        return 50.0;
+    };
+    let position = if actual <= balanced {
+        50.0 * (actual - compact) / (balanced - compact)
+    } else {
+        50.0 + (50.0 * (actual - balanced) / (open - balanced))
+    };
+    position.clamp(0.0, 100.0).round()
+}
+
+fn preset_values(source: &str, kind: &str, preset: &str) -> Vec<(&'static str, f64)> {
+    let Ok(theme) = ThemeFile::parse(source) else {
+        return Vec::new();
+    };
+    let modern = theme
+        .manifest()
+        .controls
+        .iter()
+        .any(|control| control.key() == "accent_color");
+    let preset_index = match preset {
+        "compact" | "narrow" => 0,
+        "balanced" | "standard" => 1,
+        "open" | "wide" => 2,
+        _ => return Vec::new(),
+    };
+    let (keys, values): (&[&str], Vec<f64>) = match (kind, modern) {
+        ("spacing", true) => (
+            &["body_leading_em", "section_gap_pt", "entry_gap_pt"],
+            [[0.34, 8.0, 6.0], [0.5, 12.0, 9.0], [0.68, 17.0, 13.0]][preset_index].to_vec(),
+        ),
+        ("spacing", false) => (
+            &["body_leading_em", "section_gap_pt", "entry_gap_pt"],
+            [[0.28, 7.0, 5.0], [0.4, 10.0, 8.0], [0.55, 14.0, 11.0]][preset_index].to_vec(),
+        ),
+        ("margins", true) => (
+            &["page_margin_x_in", "page_margin_y_in"],
+            [[0.5, 0.5], [0.72, 0.68], [0.95, 0.9]][preset_index].to_vec(),
+        ),
+        ("margins", false) => (
+            &["page_margin_x_in", "page_margin_y_in"],
+            [[0.38, 0.38], [0.5, 0.5], [0.75, 0.75]][preset_index].to_vec(),
+        ),
+        _ => return Vec::new(),
+    };
+    keys.iter()
+        .zip(values)
+        .map(|(key, value)| (*key, value))
+        .collect()
+}
+
+fn number_bounds(controls: &[ThemeControl], key: &str) -> Option<(f64, f64, f64, f64)> {
+    controls.iter().find_map(|control| match control {
+        ThemeControl::Number {
+            key: found,
+            value,
+            min,
+            max,
+            step,
+            ..
+        } if found == key => Some((*value, *min, *max, *step)),
+        _ => None,
+    })
+}
+
+fn color_value(controls: &[ThemeControl], key: &str) -> Option<String> {
+    controls.iter().find_map(|control| match control {
+        ThemeControl::Color {
+            key: found, value, ..
+        } if found == key => Some(value.clone()),
+        _ => None,
+    })
 }
 
 fn control_number(theme_source: RwSignal<String>, key: &str) -> Option<f64> {
@@ -422,11 +640,32 @@ fn control_number(theme_source: RwSignal<String>, key: &str) -> Option<f64> {
         })
 }
 
-fn event_target_checked(event: &Event) -> bool {
-    event
-        .target()
-        .and_then(|target| target.dyn_into::<HtmlInputElement>().ok())
-        .is_some_and(|input| input.checked())
+fn control_text(theme_source: RwSignal<String>, key: &str) -> Option<String> {
+    ThemeFile::parse(theme_source.get())
+        .ok()?
+        .manifest()
+        .controls
+        .iter()
+        .find_map(|control| match control {
+            ThemeControl::Color {
+                key: found, value, ..
+            }
+            | ThemeControl::Font {
+                key: found, value, ..
+            } if found == key => Some(value.clone()),
+            _ => None,
+        })
+}
+
+fn format_number(value: f64) -> String {
+    if value.fract().abs() < f64::EPSILON {
+        format!("{value:.0}")
+    } else {
+        format!("{value:.2}")
+            .trim_end_matches('0')
+            .trim_end_matches('.')
+            .to_owned()
+    }
 }
 
 fn replace_urls(signal: RwSignal<Vec<String>>, next: Vec<Result<String, JsValue>>) {
