@@ -23,8 +23,8 @@ test("themes can be customized and exported with the matching PDF", async ({ pag
   );
 
   await page.locator("#resume-file").setInputFiles("examples/resume.md");
-  await expect(status).toContainText("Rendered 2 page(s)", { timeout: 120_000 });
-  await expect(previews).toHaveCount(2);
+  await expect(status).toContainText("Rendered 1 page(s)", { timeout: 120_000 });
+  await expect(previews).toHaveCount(1);
   await expect(previews.first()).toBeVisible();
   await expect(previews.last()).toBeVisible();
   await expect
@@ -39,7 +39,7 @@ test("themes can be customized and exported with the matching PDF", async ({ pag
     .toBe(true);
 
   const firstPreviewUrl = await previews.first().getAttribute("src");
-  await page.getByLabel("Theme", { exact: true }).selectOption("jakes");
+  await page.getByLabel("Theme", { exact: true }).selectOption("modern");
   await expect(status).toContainText("Rendered", { timeout: 120_000 });
   await expect
     .poll(() => previews.first().getAttribute("src"))
@@ -87,7 +87,7 @@ test("themes can be customized and exported with the matching PDF", async ({ pag
   const themeDownloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "Download theme" }).click();
   const themeDownload = await themeDownloadPromise;
-  expect(themeDownload.suggestedFilename()).toBe("jake-s-resume.typ");
+  expect(themeDownload.suggestedFilename()).toBe("modern.typ");
 
   await page.screenshot({ path: "target/theme-workbench.png", fullPage: true });
   expect(browserErrors).toEqual([]);

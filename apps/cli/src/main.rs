@@ -39,7 +39,7 @@ enum Command {
         #[arg(long, default_value_t = 2, value_parser = parse_page_limit)]
         max_pages: usize,
 
-        /// Bundled theme to use. Defaults to minimal.
+        /// Bundled theme to use. Defaults to Jake's Resume.
         #[arg(long, value_enum, conflicts_with = "theme_file")]
         theme: Option<ThemeName>,
 
@@ -70,19 +70,15 @@ enum Command {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum ThemeName {
-    Minimal,
-    Modern,
-    Compact,
     Jakes,
+    Modern,
 }
 
 impl From<ThemeName> for BundledTheme {
     fn from(value: ThemeName) -> Self {
         match value {
-            ThemeName::Minimal => Self::Minimal,
-            ThemeName::Modern => Self::Modern,
-            ThemeName::Compact => Self::Compact,
             ThemeName::Jakes => Self::Jakes,
+            ThemeName::Modern => Self::Modern,
         }
     }
 }
@@ -169,7 +165,7 @@ fn load_theme(theme: Option<ThemeName>, theme_file: Option<&Path>) -> Result<The
     }
 
     Ok(ThemeSelection::Bundled(
-        theme.map_or(BundledTheme::Minimal, Into::into),
+        theme.map_or(BundledTheme::Jakes, Into::into),
     ))
 }
 

@@ -34,36 +34,30 @@ const BUNDLED_FONT_BYTES: &[&[u8]] = &[
 /// A theme shipped with Resumark.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BundledTheme {
-    Minimal,
-    Modern,
-    Compact,
     Jakes,
+    Modern,
 }
 
 impl BundledTheme {
     #[must_use]
     pub const fn id(self) -> &'static str {
         match self {
-            Self::Minimal => "minimal",
-            Self::Modern => "modern",
-            Self::Compact => "compact",
             Self::Jakes => "jakes",
+            Self::Modern => "modern",
         }
     }
 
     #[must_use]
     pub const fn source(self) -> &'static str {
         match self {
-            Self::Minimal => include_str!("../../../themes/minimal.typ"),
-            Self::Modern => include_str!("../../../themes/modern.typ"),
-            Self::Compact => include_str!("../../../themes/compact.typ"),
             Self::Jakes => include_str!("../../../themes/jakes.typ"),
+            Self::Modern => include_str!("../../../themes/modern.typ"),
         }
     }
 
     #[must_use]
     pub const fn all() -> &'static [Self] {
-        &[Self::Minimal, Self::Modern, Self::Compact, Self::Jakes]
+        &[Self::Jakes, Self::Modern]
     }
 
     pub fn file(self) -> Result<ThemeFile, ThemeFileError> {
@@ -80,7 +74,7 @@ pub enum ThemeSelection {
 
 impl Default for ThemeSelection {
     fn default() -> Self {
-        Self::Bundled(BundledTheme::Minimal)
+        Self::Bundled(BundledTheme::Jakes)
     }
 }
 
@@ -333,7 +327,7 @@ mod tests {
 
     #[test]
     fn theme_errors_point_into_custom_source() {
-        let mut source = BundledTheme::Minimal.source().to_owned();
+        let mut source = BundledTheme::Jakes.source().to_owned();
         source.push_str("\n#this-function-does-not-exist()\n");
         let theme = ThemeFile::parse(source).expect("the manifest is valid");
         let error = match compile_test_document(ThemeSelection::Custom(theme)) {

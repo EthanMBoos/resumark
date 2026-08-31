@@ -26,9 +26,9 @@ fn main() {
 fn App() -> impl IntoView {
     let resume_name = RwSignal::new("No file selected".to_owned());
     let markdown = RwSignal::new(None::<String>);
-    let starter = RwSignal::new("minimal".to_owned());
-    let theme_source = RwSignal::new(BundledTheme::Minimal.source().to_owned());
-    let reset_source = RwSignal::new(BundledTheme::Minimal.source().to_owned());
+    let starter = RwSignal::new("jakes".to_owned());
+    let theme_source = RwSignal::new(BundledTheme::Jakes.source().to_owned());
+    let reset_source = RwSignal::new(BundledTheme::Jakes.source().to_owned());
     let show_source = RwSignal::new(false);
     let revision = RwSignal::new(0_u64);
     let status = RwSignal::new("Open a Markdown resume to begin.".to_owned());
@@ -198,9 +198,7 @@ fn App() -> impl IntoView {
         let id = leptos::prelude::event_target_value(&event);
         let source = match id.as_str() {
             "modern" => BundledTheme::Modern.source(),
-            "compact" => BundledTheme::Compact.source(),
-            "jakes" => BundledTheme::Jakes.source(),
-            _ => BundledTheme::Minimal.source(),
+            _ => BundledTheme::Jakes.source(),
         }
         .to_owned();
         starter.set(id);
@@ -245,10 +243,8 @@ fn App() -> impl IntoView {
 
                         <label>
                             <select aria-label="Theme" id="theme-select" prop:value=move || starter.get() on:change=select_starter>
-                                <option value="minimal">"Default"</option>
-                                <option value="modern">"Modern"</option>
-                                <option value="compact">"Compact"</option>
                                 <option value="jakes">"Jake's Resume"</option>
+                                <option value="modern">"Modern"</option>
                                 <option value="custom" disabled=move || starter.get() != "custom">"Custom file"</option>
                             </select>
                         </label>
