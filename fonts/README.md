@@ -1,6 +1,6 @@
 # Bundled fonts
 
-Resumark includes three font families. The renderer embeds only these files, so
+Resumark includes five font families. The renderer embeds only these files, so
 the browser and CLI produce the same output without fetching fonts.
 
 ## CMU Serif
@@ -36,3 +36,23 @@ Libertinus uses the SIL Open Font License 1.1. Its notice and license are in
 The files under [`source-sans/`](source-sans/) come from Adobe Source Sans
 3.052. Source Sans uses the SIL Open Font License 1.1. Its notice and license
 are in [`source-sans/LICENSE.md`](source-sans/LICENSE.md).
+
+## Nunito
+
+- Regular
+- Italic
+- Bold
+- Bold Italic
+
+The files under [`nunito/`](nunito/) are the faces embedded in the Pirate
+reference document. Nunito uses the SIL Open Font License 1.1. Its notice and
+license are in [`nunito/OFL.txt`](nunito/OFL.txt).
+
+## Spectral
+
+- Regular
+- Medium
+
+The files under [`spectral/`](spectral/) are the faces embedded in the Pirate
+reference document. Spectral uses the SIL Open Font License 1.1. Its notice and
+license are in [`spectral/OFL.txt`](spectral/OFL.txt).

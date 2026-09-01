@@ -39,6 +39,11 @@ test("themes can be customized and exported with the matching PDF", async ({ pag
     .toBe(true);
 
   const firstPreviewUrl = await previews.first().getAttribute("src");
+  await page.getByLabel("Theme", { exact: true }).selectOption("pirate");
+  await expect(status).toContainText("Rendered 1 page(s)", { timeout: 120_000 });
+  await expect(page.getByRole("group", { name: "Text size" })).toContainText("9");
+  await expect(page.getByRole("group", { name: "Name size" })).toContainText("16");
+
   await page.getByLabel("Theme", { exact: true }).selectOption("modern");
   await expect(status).toContainText("Rendered", { timeout: 120_000 });
   await expect
@@ -88,11 +93,14 @@ test("themes can be customized and exported with the matching PDF", async ({ pag
   const pdfHeader = fs.readFileSync(downloadedPath!).subarray(0, 5).toString();
   expect(pdfHeader).toBe("%PDF-");
 
+  await page.getByLabel("Theme", { exact: true }).selectOption("pirate");
+  await expect(status).toContainText("Rendered 1 page(s)", { timeout: 120_000 });
+
   await page.getByText("Theme files", { exact: true }).click();
   const themeDownloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "Download theme" }).click();
   const themeDownload = await themeDownloadPromise;
-  expect(themeDownload.suggestedFilename()).toBe("modern.typ");
+  expect(themeDownload.suggestedFilename()).toBe("pirate.typ");
 
   await page.screenshot({ path: "target/theme-workbench.png", fullPage: true });
   expect(browserErrors).toEqual([]);

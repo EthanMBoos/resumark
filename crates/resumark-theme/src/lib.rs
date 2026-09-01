@@ -16,7 +16,8 @@ const MAX_MANIFEST_BYTES: usize = 32 * 1024;
 const MAX_CONTROLS: usize = 32;
 
 pub const THEME_FORMAT_VERSION: u32 = 1;
-pub const BUNDLED_FONT_FAMILIES: &[&str] = &["CMU Serif", "Libertinus Serif", "Source Sans 3"];
+pub const BUNDLED_FONT_FAMILIES: &[&str] =
+    &["CMU Serif", "Libertinus Serif", "Nunito", "Source Sans 3"];
 
 /// A parsed, portable `.typ` theme and its editable manifest.
 #[derive(Debug, Clone, PartialEq)]

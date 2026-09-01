@@ -25,6 +25,12 @@ const BUNDLED_FONT_BYTES: &[&[u8]] = &[
     include_bytes!("../../../fonts/libertinus/LibertinusSerif-Italic.otf"),
     include_bytes!("../../../fonts/libertinus/LibertinusSerif-Bold.otf"),
     include_bytes!("../../../fonts/libertinus/LibertinusSerif-BoldItalic.otf"),
+    include_bytes!("../../../fonts/nunito/Nunito-Regular.ttf"),
+    include_bytes!("../../../fonts/nunito/Nunito-Italic.ttf"),
+    include_bytes!("../../../fonts/nunito/Nunito-Bold.ttf"),
+    include_bytes!("../../../fonts/nunito/Nunito-BoldItalic.ttf"),
+    include_bytes!("../../../fonts/spectral/Spectral-Regular.ttf"),
+    include_bytes!("../../../fonts/spectral/Spectral-Medium.ttf"),
     include_bytes!("../../../fonts/source-sans/SourceSans3-Regular.otf"),
     include_bytes!("../../../fonts/source-sans/SourceSans3-It.otf"),
     include_bytes!("../../../fonts/source-sans/SourceSans3-Semibold.otf"),
@@ -36,6 +42,7 @@ const BUNDLED_FONT_BYTES: &[&[u8]] = &[
 pub enum BundledTheme {
     Jakes,
     Modern,
+    Pirate,
 }
 
 impl BundledTheme {
@@ -44,6 +51,7 @@ impl BundledTheme {
         match self {
             Self::Jakes => "jakes",
             Self::Modern => "modern",
+            Self::Pirate => "pirate",
         }
     }
 
@@ -52,12 +60,13 @@ impl BundledTheme {
         match self {
             Self::Jakes => include_str!("../../../themes/jakes.typ"),
             Self::Modern => include_str!("../../../themes/modern.typ"),
+            Self::Pirate => include_str!("../../../themes/pirate.typ"),
         }
     }
 
     #[must_use]
     pub const fn all() -> &'static [Self] {
-        &[Self::Jakes, Self::Modern]
+        &[Self::Jakes, Self::Modern, Self::Pirate]
     }
 
     pub fn file(self) -> Result<ThemeFile, ThemeFileError> {

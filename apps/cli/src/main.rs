@@ -72,6 +72,7 @@ enum Command {
 enum ThemeName {
     Jakes,
     Modern,
+    Pirate,
 }
 
 impl From<ThemeName> for BundledTheme {
@@ -79,6 +80,7 @@ impl From<ThemeName> for BundledTheme {
         match value {
             ThemeName::Jakes => Self::Jakes,
             ThemeName::Modern => Self::Modern,
+            ThemeName::Pirate => Self::Pirate,
         }
     }
 }

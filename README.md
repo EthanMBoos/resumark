@@ -4,7 +4,7 @@ Keep a resume as a Markdown file. Edit it in Obsidian, VS Code, Sublime, or any
 other Markdown editor. Open that file in Resumark, choose a theme, and download
 the PDF. Nothing is uploaded or saved.
 
-The web app includes two starter themes. Each theme has simple controls for
+The web app includes three starter themes. Each theme has simple controls for
 fonts, sizes, spacing, margins, and colors. Download any starter as one `.typ`
 file to make a custom theme, then open that theme in the app or use it from the
 CLI.
@@ -78,8 +78,8 @@ is one `.typ` file with a JSON manifest at the top:
 ```
 
 Controls can be numbers, `#RRGGBB` colors, or a choice between the bundled CMU
-Serif, Libertinus Serif, and Source Sans 3 fonts. The web app updates values in
-this manifest.
+Serif, Libertinus Serif, Nunito, and Source Sans 3 fonts. The web app updates
+values in this manifest.
 
 The Typst source imports any helpers it needs and exports one function:
 

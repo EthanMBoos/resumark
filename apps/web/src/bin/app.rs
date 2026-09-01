@@ -197,6 +197,7 @@ fn App() -> impl IntoView {
         let id = leptos::prelude::event_target_value(&event);
         let source = match id.as_str() {
             "modern" => BundledTheme::Modern.source(),
+            "pirate" => BundledTheme::Pirate.source(),
             _ => BundledTheme::Jakes.source(),
         }
         .to_owned();
@@ -243,6 +244,7 @@ fn App() -> impl IntoView {
                         <select aria-label="Theme" id="theme-select" prop:value=move || starter.get() on:change=select_starter>
                             <option value="jakes">"Jake's Resume"</option>
                             <option value="modern">"Modern"</option>
+                            <option value="pirate">"Pirate"</option>
                             <option value="custom" disabled=move || starter.get() != "custom">"Custom file"</option>
                         </select>
 
@@ -567,31 +569,35 @@ fn preset_values(source: &str, kind: &str, preset: &str) -> Vec<(&'static str, f
     let Ok(theme) = ThemeFile::parse(source) else {
         return Vec::new();
     };
-    let modern = theme
-        .manifest()
-        .controls
-        .iter()
-        .any(|control| control.key() == "accent_color");
+    let theme_name = theme.manifest().name.as_str();
     let preset_index = match preset {
         "compact" | "narrow" => 0,
         "balanced" | "standard" => 1,
         "open" | "wide" => 2,
         _ => return Vec::new(),
     };
-    let (keys, values): (&[&str], Vec<f64>) = match (kind, modern) {
-        ("spacing", true) => (
+    let (keys, values): (&[&str], Vec<f64>) = match (kind, theme_name) {
+        ("spacing", "Modern") => (
             &["body_leading_em", "section_gap_pt", "entry_gap_pt"],
             [[0.34, 8.0, 6.0], [0.5, 12.0, 9.0], [0.68, 17.0, 13.0]][preset_index].to_vec(),
         ),
-        ("spacing", false) => (
+        ("spacing", "Pirate") => (
+            &["body_leading_em", "section_gap_pt", "entry_gap_pt"],
+            [[0.48, 8.0, 9.0], [0.66, 10.5, 13.0], [0.8, 14.0, 17.0]][preset_index].to_vec(),
+        ),
+        ("spacing", _) => (
             &["body_leading_em", "section_gap_pt", "entry_gap_pt"],
             [[0.28, 7.0, 5.0], [0.4, 10.0, 8.0], [0.55, 14.0, 11.0]][preset_index].to_vec(),
         ),
-        ("margins", true) => (
+        ("margins", "Modern") => (
             &["page_margin_x_in", "page_margin_y_in"],
             [[0.5, 0.5], [0.72, 0.68], [0.95, 0.9]][preset_index].to_vec(),
         ),
-        ("margins", false) => (
+        ("margins", "Pirate") => (
+            &["page_margin_x_in", "page_margin_y_in"],
+            [[0.25, 0.42], [0.3125, 0.58], [0.55, 0.75]][preset_index].to_vec(),
+        ),
+        ("margins", _) => (
             &["page_margin_x_in", "page_margin_y_in"],
             [[0.38, 0.38], [0.5, 0.5], [0.75, 0.75]][preset_index].to_vec(),
         ),
